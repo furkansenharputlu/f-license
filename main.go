@@ -25,15 +25,17 @@ func main() {
 
 	config.Global.Load("config.json")
 
-	router := mux.NewRouter()
+	r := mux.NewRouter()
 	// Endpoints called by product owners
-	router.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
-	router.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
+	adminRouter := r.PathPrefix("/admin").Subrouter()
+	adminRouter.Use(authenticationMiddleware)
+	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
 
 	// Endpoints called by product instances having license
-	router.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
-	router.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Global.Port), router))
+	r.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
+	r.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Global.Port), r))
 }
 
 type License struct {
@@ -44,6 +46,26 @@ type License struct {
 type Customer struct {
 	License License                `json:"license"`
 	Details map[string]interface{} `json:"details"`
+}
+
+func authenticationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != config.Global.AdminSecret {
+			resp := map[string]interface{}{
+				"status":  http.StatusUnauthorized,
+				"message": "Authorization failed",
+			}
+
+			bytes, _ := json.Marshal(resp)
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, string(bytes))
+			return
+		}
+
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
 }
 
 func CustomerHandler(w http.ResponseWriter, r *http.Request) {
