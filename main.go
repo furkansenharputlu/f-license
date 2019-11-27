@@ -7,9 +7,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"hash/fnv"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 const Version = "0.1"
@@ -19,6 +21,8 @@ func intro() {
 	logrus.Info("Copyright Furkan Şenharputlu 2019")
 	logrus.Info("https://f-license.com")
 }
+
+var licenses = make(map[uint64]*License)
 
 func main() {
 	intro()
@@ -30,6 +34,7 @@ func main() {
 	adminRouter := r.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(authenticationMiddleware)
 	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/inactivate", InactivateLicense).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
 
 	// Endpoints called by product instances having license
@@ -39,8 +44,10 @@ func main() {
 }
 
 type License struct {
-	Type   string        `json:"type"`
-	Claims jwt.MapClaims `json:"claims"`
+	Type     string        `json:"type"`
+	Hash     uint64        `json:"hash"`
+	Claims   jwt.MapClaims `json:"claims"`
+	Inactive bool          `json:"-"`
 }
 
 type Customer struct {
@@ -51,21 +58,23 @@ type Customer struct {
 func authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != config.Global.AdminSecret {
-			resp := map[string]interface{}{
+			ReturnResponse(w, map[string]interface{}{
 				"status":  http.StatusUnauthorized,
 				"message": "Authorization failed",
-			}
-
-			bytes, _ := json.Marshal(resp)
-
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprintf(w, string(bytes))
+			})
 			return
 		}
 
 		// Call the next handler, which can be another middleware in the chain, or the final handler.
 		next.ServeHTTP(w, r)
 	})
+}
+
+func ReturnResponse(w http.ResponseWriter, resp map[string]interface{}) {
+	bytes, _ := json.Marshal(resp)
+
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = fmt.Fprintf(w, string(bytes))
 }
 
 func CustomerHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,8 +108,29 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logrus.Info("License successfully generated")
+	h := fnv.New64a()
+	h.Write([]byte(signedString))
 
-	_, _ = fmt.Fprintf(w, signedString)
+	hash := h.Sum64()
+
+	licenses[hash] = &l
+
+	ReturnResponse(w, map[string]interface{}{
+		"license":      signedString,
+		"license_hash": hash,
+	})
+}
+
+func InactivateLicense(w http.ResponseWriter, r *http.Request) {
+	hash := r.FormValue("license_hash")
+
+	u, _ := strconv.ParseUint(hash, 10, 64)
+	licenses[u].Inactive = true
+
+	logrus.Infof(`License is successfully inactivated: %d`, u)
+	ReturnResponse(w, map[string]interface{}{
+		"message": "Inactivated",
+	})
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
@@ -111,18 +141,27 @@ func CheckLicense(w http.ResponseWriter, r *http.Request) {
 	license := r.FormValue("license")
 	ok, err := IsLicenseValid(license)
 	if err != nil {
-		_, _ = fmt.Fprintf(w, "error while parsing license: %s", err)
+		ReturnResponse(w, map[string]interface{}{
+			"valid":   false,
+			"message": fmt.Sprintf("error while validating license: %s", err),
+		})
+
 		return
 	}
 
-	if ok {
-		_, _ = fmt.Fprintf(w, "valid")
-	} else {
-		_, _ = fmt.Fprintf(w, "invalid")
-	}
+	ReturnResponse(w, map[string]interface{}{
+		"valid": ok,
+	})
 }
 
 func IsLicenseValid(license string) (bool, error) {
+	h := fnv.New64a()
+	h.Write([]byte(license))
+
+	if licenses[h.Sum64()].Inactive {
+		return false, fmt.Errorf("inactivated")
+	}
+
 	token, err := jwt.Parse(license, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
