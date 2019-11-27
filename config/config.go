@@ -9,7 +9,8 @@ import (
 var Global = &Config{}
 
 type Config struct {
-	Secret string
+	Secret string `json:"secret"`
+	Port   int    `json:"port"`
 }
 
 func (c *Config) Load(filePath string) {

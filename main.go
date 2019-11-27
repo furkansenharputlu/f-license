@@ -28,18 +28,40 @@ func main() {
 	router := mux.NewRouter()
 	// Endpoints called by product owners
 	router.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
-	router.HandleFunc("/customers", nil).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
-
+	router.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
 
 	// Endpoints called by product instances having license
 	router.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
 	router.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
-	log.Fatal(http.ListenAndServe(":4242", router))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Global.Port), router))
 }
 
 type License struct {
 	Type   string        `json:"type"`
 	Claims jwt.MapClaims `json:"claims"`
+}
+
+type Customer struct {
+	License License                `json:"license"`
+	Details map[string]interface{} `json:"details"`
+}
+
+func CustomerHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+
+	case http.MethodPost:
+		bytes, _ := ioutil.ReadAll(r.Body)
+
+		c := Customer{}
+		_ = json.Unmarshal(bytes, &c)
+
+		fmt.Println(c)
+	case http.MethodPut:
+
+	case http.MethodDelete:
+
+	}
 }
 
 func GenerateLicense(w http.ResponseWriter, r *http.Request) {
