@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"f-license/config"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -23,10 +25,11 @@ func main() {
 
 	config.Global.Load("config.json")
 
-	router := mux.NewRouter().StrictSlash(true)
+	router := mux.NewRouter()
 	// Endpoints called by product owners
 	router.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
 	router.HandleFunc("/customers", nil).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
+
 
 	// Endpoints called by product instances having license
 	router.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
@@ -34,10 +37,18 @@ func main() {
 	log.Fatal(http.ListenAndServe(":4242", router))
 }
 
+type License struct {
+	Type   string        `json:"type"`
+	Claims jwt.MapClaims `json:"claims"`
+}
+
 func GenerateLicense(w http.ResponseWriter, r *http.Request) {
-	claims := jwt.MapClaims{}
-	claims["username"] = r.FormValue("username")
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	bytes, _ := ioutil.ReadAll(r.Body)
+
+	var l License
+	_ = json.Unmarshal(bytes, &l)
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, l.Claims)
 	signedString, err := token.SignedString([]byte(config.Global.Secret))
 	if err != nil {
 		logrus.Error("Error signing token:", err)
