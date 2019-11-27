@@ -1,66 +1,90 @@
 package main
 
 import (
-	"crypto/rsa"
+	"f-license/config"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
+	"log"
+	"net/http"
 )
 
-const privKeyPath = "private.pem"
-const pubKeyPath = "public.pem"
+const Version = "0.1"
 
-var (
-	verifyKey *rsa.PublicKey
-	signKey   *rsa.PrivateKey
-)
-
-// read the key files before starting http handlers
-func init() {
-	signBytes, err := ioutil.ReadFile(privKeyPath)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	verifyBytes, err := ioutil.ReadFile(pubKeyPath)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
-	if err != nil {
-		logrus.Fatal(err)
-	}
+func intro() {
+	logrus.Info("f-license ", Version)
+	logrus.Info("Copyright Furkan Şenharputlu 2019")
+	logrus.Info("https://f-license.com")
 }
 
 func main() {
-	// Server will be implemented.
+	intro()
+
+	config.Global.Load("config.json")
+
+	router := mux.NewRouter().StrictSlash(true)
+	// Endpoints called by product owners
+	router.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
+	router.HandleFunc("/customers", nil).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
+
+	// Endpoints called by product instances having license
+	router.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
+	router.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
+	log.Fatal(http.ListenAndServe(":4242", router))
 }
 
-func CheckLicenseValid(license string) bool {
+func GenerateLicense(w http.ResponseWriter, r *http.Request) {
+	claims := jwt.MapClaims{}
+	claims["username"] = r.FormValue("username")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedString, err := token.SignedString([]byte(config.Global.Secret))
+	if err != nil {
+		logrus.Error("Error signing token:", err)
+	}
+
+	logrus.Info("License successfully generated")
+
+	_, _ = fmt.Fprintf(w, signedString)
+}
+
+func Ping(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func CheckLicense(w http.ResponseWriter, r *http.Request) {
+	license := r.FormValue("license")
+	ok, err := IsLicenseValid(license)
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "error while parsing license: %s", err)
+		return
+	}
+
+	if ok {
+		_, _ = fmt.Fprintf(w, "valid")
+	} else {
+		_, _ = fmt.Fprintf(w, "invalid")
+	}
+}
+
+func IsLicenseValid(license string) (bool, error) {
 	token, err := jwt.Parse(license, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return verifyKey, nil
+		return []byte(config.Global.Secret), nil
 	})
 
 	if err != nil {
 		logrus.Error(err)
-		return false
+		return false, err
 	}
 
 	if !token.Valid {
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
 }
