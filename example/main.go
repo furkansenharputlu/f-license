@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -34,13 +33,13 @@ func onpremise() {
 		})
 
 		if err != nil {
-			logrus.Error(err)
+			continue
+		}
+
+		if !token.Valid {
+			LicenseValid = false
 		} else {
-			if !token.Valid {
-				LicenseValid = false
-			} else {
-				LicenseValid = true
-			}
+			LicenseValid = true
 		}
 
 		fmt.Println(LicenseValid)
@@ -55,18 +54,19 @@ func cloud() {
 		resp, err := http.Post("http://localhost:4242/license/verify", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 		if err != nil {
 			fmt.Println("License couldn't be verified:", err)
+			continue
+		}
+
+		var res map[string]interface{}
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		json.Unmarshal(bytes, &res)
+
+		valid := res["valid"].(bool)
+
+		if !valid {
+			LicenseValid = false
 		} else {
-			var res map[string]interface{}
-			bytes, _ := ioutil.ReadAll(resp.Body)
-			json.Unmarshal(bytes, &res)
-
-			valid := res["valid"].(bool)
-
-			if !valid {
-				LicenseValid = false
-			} else {
-				LicenseValid = true
-			}
+			LicenseValid = true
 		}
 
 		fmt.Println(LicenseValid)

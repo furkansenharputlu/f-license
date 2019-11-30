@@ -9,8 +9,8 @@ import (
 var Global = &Config{}
 
 type Config struct {
-	Secret string `json:"secret"`
-	Port   int    `json:"port"`
+	Secret      string `json:"secret"`
+	Port        int    `json:"port"`
 	AdminSecret string `json:"admin_secret"`
 }
 
