@@ -1,5 +1,5 @@
 {
-  "secret": "test-secret123123123123123131312312312321312313213123123123123123",
+  "secret": "test-secret",
   "port": 4242,
   "admin_secret": "admin123"
 }

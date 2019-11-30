@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const Version = "0.1"
@@ -34,11 +35,12 @@ func main() {
 	adminRouter := r.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(authenticationMiddleware)
 	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/inactivate", InactivateLicense).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
 
 	// Endpoints called by product instances having license
-	r.HandleFunc("/license/check", CheckLicense).Methods(http.MethodPost)
+	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
 	r.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Global.Port), r))
 }
@@ -121,15 +123,30 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func InactivateLicense(w http.ResponseWriter, r *http.Request) {
+func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 	hash := r.FormValue("license_hash")
+	var message string
 
 	u, _ := strconv.ParseUint(hash, 10, 64)
-	licenses[u].Inactive = true
+	l, ok := licenses[u]
+	if !ok {
+		ReturnResponse(w, map[string]interface{}{
+			"message": "license not found",
+		})
+		return
+	}
+
+	if strings.HasSuffix(r.URL.Path, "/inactivate") {
+		l.Inactive = true
+		message = "Inactivated"
+	} else {
+		message = "Activated"
+		l.Inactive = false
+	}
 
 	logrus.Infof(`License is successfully inactivated: %d`, u)
 	ReturnResponse(w, map[string]interface{}{
-		"message": "Inactivated",
+		"message": message,
 	})
 }
 
@@ -137,7 +154,7 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func CheckLicense(w http.ResponseWriter, r *http.Request) {
+func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	license := r.FormValue("license")
 	ok, err := IsLicenseValid(license)
 	if err != nil {
@@ -158,8 +175,13 @@ func IsLicenseValid(license string) (bool, error) {
 	h := fnv.New64a()
 	h.Write([]byte(license))
 
-	if licenses[h.Sum64()].Inactive {
-		return false, fmt.Errorf("inactivated")
+	l, ok := licenses[h.Sum64()]
+	if !ok {
+		return false, fmt.Errorf("license not found")
+	}
+
+	if l.Inactive {
+		return false, fmt.Errorf("license inactivated")
 	}
 
 	token, err := jwt.Parse(license, func(token *jwt.Token) (interface{}, error) {
