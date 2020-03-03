@@ -1,7 +1,7 @@
 # f-license
 > **NOTE**: This project will be improved with lots of new features!
 
-**f-license** is a tool to use in your apps for license activation.
+**f-license** is an open-source license activation tool.
 
 # How to use
 
