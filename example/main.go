@@ -17,11 +17,15 @@ const secret = "test-secret"
 var LicenseValid bool
 
 func main() {
-	cloud()
-	//onpremise()
+	//localVerification()
+	remoteVerification()
+
+	if LicenseValid {
+		fmt.Println("An operation can be done if the license is valid")
+	}
 }
 
-func onpremise() {
+func localVerification() {
 	for {
 		token, err := jwt.Parse(license, func(token *jwt.Token) (interface{}, error) {
 			// Don't forget to validate the alg is what you expect:
@@ -47,7 +51,7 @@ func onpremise() {
 	}
 }
 
-func cloud() {
+func remoteVerification() {
 	for {
 		form := url.Values{}
 		form.Add("license", license)

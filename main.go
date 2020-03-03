@@ -19,7 +19,7 @@ const Version = "0.1"
 
 func intro() {
 	logrus.Info("f-license ", Version)
-	logrus.Info("Copyright Furkan Şenharputlu 2019")
+	logrus.Info("Copyright Furkan Şenharputlu 2020")
 	logrus.Info("https://f-license.com")
 }
 
@@ -37,7 +37,6 @@ func main() {
 	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/customer", CustomerHandler).Methods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete)
 
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
@@ -52,16 +51,11 @@ type License struct {
 	Inactive bool          `json:"-"`
 }
 
-type Customer struct {
-	License License                `json:"license"`
-	Details map[string]interface{} `json:"details"`
-}
-
 func authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != config.Global.AdminSecret {
+			w.WriteHeader(http.StatusUnauthorized)
 			ReturnResponse(w, map[string]interface{}{
-				"status":  http.StatusUnauthorized,
 				"message": "Authorization failed",
 			})
 			return
@@ -77,24 +71,6 @@ func ReturnResponse(w http.ResponseWriter, resp map[string]interface{}) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = fmt.Fprintf(w, string(bytes))
-}
-
-func CustomerHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-
-	case http.MethodPost:
-		bytes, _ := ioutil.ReadAll(r.Body)
-
-		c := Customer{}
-		_ = json.Unmarshal(bytes, &c)
-
-		fmt.Println(c)
-	case http.MethodPut:
-
-	case http.MethodDelete:
-
-	}
 }
 
 func GenerateLicense(w http.ResponseWriter, r *http.Request) {
@@ -139,12 +115,13 @@ func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(r.URL.Path, "/inactivate") {
 		l.Inactive = true
 		message = "Inactivated"
+		logrus.Infof(`License is successfully inactivated: %d`, u)
 	} else {
-		message = "Activated"
 		l.Inactive = false
+		message = "Activated"
+		logrus.Infof(`License is successfully activated: %d`, u)
 	}
 
-	logrus.Infof(`License is successfully inactivated: %d`, u)
 	ReturnResponse(w, map[string]interface{}{
 		"message": message,
 	})
