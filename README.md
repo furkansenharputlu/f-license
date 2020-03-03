@@ -11,7 +11,7 @@
 3. Run `./f-license` 
 
 
-# Embed client code to your example app
+## Embed client code to your example app
 
 In the **example** directory, you can access to a simple usage of the activation in your Go application. There are two variables you need to set:
 
