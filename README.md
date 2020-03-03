@@ -11,7 +11,14 @@
 2. Run `go build`
 3. Run `./f-license` 
 
-## Generating license
+## Embed client code to your example app
+
+In the **example** directory, you can access to a simple usage of the activation in your Go application. There are two variables you need to set:
+
+- `license`: a license created by **f-license** 
+- `secret`: a private secret to validate the license
+
+## Generate license
 
 **Sample request**
 
@@ -71,10 +78,3 @@ license_hash=12661635182986732340
     "message": "Inactivated"
 }
 ```
-
-## Embed client code to your example app
-
-In the **example** directory, you can access to a simple usage of the activation in your Go application. There are two variables you need to set:
-
-- `license`: a license created by **f-license** 
-- `secret`: a private secret to validate the license
