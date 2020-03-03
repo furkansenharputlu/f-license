@@ -18,4 +18,4 @@ In the **example** directory, you can access to a simple usage of the activation
 - `license`: a license created by **f-license** 
 - `secret`: a private secret to validate the license
 
-# NOTE: This project will be improved with lots of new features!
+> NOTE: This project will be improved with lots of new features!
