@@ -11,6 +11,66 @@
 2. Run `go build`
 3. Run `./f-license` 
 
+## Generating license
+
+**Sample request**
+
+```
+POST /admin/generate HTTP/1.1
+Host: localhost:4242
+Authorization: admin123
+```
+
+**Sample response**
+
+```
+{
+    "license": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bnVsbA.BF4LHTey6WwVbYuKSP_kyfeB2-PZPEJYHmkdp_R92y4",
+    "license_hash": 12661635182986732340
+}
+```
+
+## Activate license
+
+**Sample request**
+
+```
+PUT /admin/activate HTTP/1.1
+Host: localhost:4242
+Authorization: admin123
+Content-Type: application/x-www-form-urlencoded
+
+license_hash=12661635182986732340
+```
+
+**Sample response**
+
+```
+{
+    "message": "Activated"
+}
+```
+
+## Inactivate license
+
+**Sample request**
+
+```
+PUT /admin/inactivate HTTP/1.1
+Host: localhost:4242
+Authorization: admin123
+Content-Type: application/x-www-form-urlencoded
+
+license_hash=12661635182986732340
+```
+
+**Sample response**
+
+```
+{
+    "message": "Inactivated"
+}
+```
 
 ## Embed client code to your example app
 
