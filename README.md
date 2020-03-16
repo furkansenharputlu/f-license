@@ -5,6 +5,10 @@
 
 # How to use
 
+## Prerequisites
+
+- MongoDB server
+
 ## Start f-license server
 
 1. Create and configure `config.json` file like `sample_config.json`
