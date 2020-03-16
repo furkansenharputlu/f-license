@@ -12,6 +12,7 @@ type Config struct {
 	Secret      string `json:"secret"`
 	Port        int    `json:"port"`
 	AdminSecret string `json:"admin_secret"`
+	MongoURL    string `json:"mongo_url"`
 }
 
 func (c *Config) Load(filePath string) {

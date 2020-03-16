@@ -1,5 +1,6 @@
 {
   "secret": "test-secret",
   "port": 4242,
-  "admin_secret": "admin123"
+  "admin_secret": "admin123",
+  "mongo_url": "mongodb://localhost:27017"
 }

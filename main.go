@@ -37,7 +37,7 @@ func main() {
 	config.Global.Load("config.json")
 
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.MongoURL))
 	if err != nil {
 		logrus.Fatalf("Problem while connecting to Mongo: %s", err)
 	}
