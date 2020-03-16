@@ -3,6 +3,10 @@
 	"ignore": "",
 	"package": [
 		{
+			"path": "get",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "Hn7JLbbNswnpzxE2g+z6k3grOVQ=",
 			"path": "github.com/dgrijalva/jwt-go",
 			"revision": "5e25c22bd5d6de03265bbe5462dcd162f85046f6",
@@ -21,10 +25,44 @@
 			"revisionTime": "2019-06-20T18:01:02Z"
 		},
 		{
+			"checksumSHA1": "zELlitdI3OUGxjbFS1sCI/KqPDA=",
+			"path": "github.com/go-stack/stack",
+			"revision": "2fee6af1a9795aafbe0253a0cfbdf668e1fb8a9a",
+			"revisionTime": "2018-08-26T13:48:48Z"
+		},
+		{
+			"checksumSHA1": "dbwLLJN3R0fsbrziySeijusasj0=",
+			"path": "github.com/golang/snappy",
+			"revision": "ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa",
+			"revisionTime": "2019-09-04T06:34:54Z"
+		},
+		{
 			"checksumSHA1": "e61KflUwn6YE48+89QwGdo/qmoM=",
 			"path": "github.com/gorilla/mux",
 			"revision": "49c01487a141b49f8ffe06277f3dca3ee80a55fa",
 			"revisionTime": "2019-11-21T17:05:00Z"
+		},
+		{
+			"path": "go",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "Rb6QupNKa/38yCjbfTbOSYgBVqs=",
+			"path": "go.mongodb.org/mongo-driver/mongo",
+			"revision": "32aba96df4f54d849a0ac7d4bb19412fe4e7c278",
+			"revisionTime": "2020-03-13T20:52:11Z"
+		},
+		{
+			"checksumSHA1": "QqhoWc37Kn8MAvAwpfKj0L18HSw=",
+			"path": "go.mongodb.org/mongo-driver/version",
+			"revision": "32aba96df4f54d849a0ac7d4bb19412fe4e7c278",
+			"revisionTime": "2020-03-13T20:52:11Z"
+		},
+		{
+			"checksumSHA1": "ThFld47fsBZklOb0BK7HzSJGbJs=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": "cd5d95a43a6e21273425c7ae415d3df9ea832eeb",
+			"revisionTime": "2019-08-30T23:09:31Z"
 		}
 	],
 	"rootPath": "f-license"
