@@ -9,7 +9,7 @@
 - Remote verification of a license key
 - Local verification of a license key
 - Storing licence keys in MongoDB
-- Activating and inactivating customer license keys manually
+- Activating and inactivating customer license keys remotely
 
 # How to use
 
