@@ -3,6 +3,14 @@
 
 **f-license** is an open-source license activation tool.
 
+# Features
+
+- Generating license with a secret
+- Remote verification of a license
+- Local verification of a license
+- Storing licences in MongoDB
+- Activating and inactivating customer licenses manually
+
 # How to use
 
 ## Prerequisites
