@@ -1,7 +1,7 @@
 # f-license
 > **NOTE**: This project will be improved with lots of new features!
 
-**f-license** is an open-source license activation tool.
+**f-license** is an open-source license activation tool. You can quickly add license key validation to your application. Don't implement yourself, just use the open-source product!
 
 # Features
 
