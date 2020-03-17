@@ -5,11 +5,11 @@
 
 # Features
 
-- Generating license with a secret
-- Remote verification of a license
-- Local verification of a license
-- Storing licences in MongoDB
-- Activating and inactivating customer licenses manually
+- Generating license key with a private secret
+- Remote verification of a license key
+- Local verification of a license key
+- Storing licence keys in MongoDB
+- Activating and inactivating customer license keys manually
 
 # How to use
 
