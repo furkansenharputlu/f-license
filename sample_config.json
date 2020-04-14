@@ -2,5 +2,13 @@
   "secret": "test-secret",
   "port": 4242,
   "admin_secret": "admin123",
-  "mongo_url": "mongodb://localhost:27017"
+  "mongo_url": "mongodb://localhost:27017",
+  "server_options": {
+    "enable_tls": true,
+    "cert_file": "cert.pem",
+    "key_file": "key.pem",
+    "tls_config": {
+      "ServerName": "localhost"
+    }
+  }
 }

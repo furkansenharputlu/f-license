@@ -1,3 +1,5 @@
 .idea/
 f-license
 config.json
+cert.pem
+key.pem

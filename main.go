@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"f-license/config"
 	"fmt"
@@ -56,7 +57,22 @@ func main() {
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
 	r.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Global.Port), r))
+
+	addr := fmt.Sprintf(":%d", config.Global.Port)
+	certFile := config.Global.ServerOptions.CertFile
+	keyFile := config.Global.ServerOptions.KeyFile
+
+	if config.Global.ServerOptions.EnableTLS {
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      r,
+			TLSConfig:    &config.Global.ServerOptions.TLSConfig,
+			TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+		}
+		log.Fatal(srv.ListenAndServeTLS(certFile, keyFile))
+	} else {
+		log.Fatal(http.ListenAndServe(addr, r))
+	}
 }
 
 type License struct {
