@@ -11,6 +11,8 @@
 - Storing licence keys in MongoDB
 - Activating and inactivating customer license keys remotely
 
+See the latest [Documentation](https://github.com/furkansenharputlu/f-license/wiki).
+
 # How to use
 
 ## Prerequisites
@@ -29,7 +31,3 @@ In the **example** directory, you can access to a simple usage of the activation
 
 - `license`: a license created by **f-license** 
 - `secret`: a private secret to validate the license
-
-## Documentation
-
-https://github.com/furkansenharputlu/f-license/wiki/Documentation
