@@ -20,13 +20,14 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 
 	err := l.Add()
 	if err != nil {
-		ReturnError(w, fmt.Sprintf("error while creating license: '%s'", err))
+		logrus.WithError(err).Error("Error while generating license")
+		ReturnError(w, err.Error())
 		return
 	}
 
 	ReturnResponse(w, 200, map[string]interface{}{
-		"id":           l.ID.Hex(),
-		"license":      l.Token,
+		"id":    l.ID.Hex(),
+		"token": l.Token,
 	})
 }
 
@@ -36,7 +37,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 	var l lcs.License
 	err := l.GetByID(id)
 	if err != nil {
-		ReturnError(w, fmt.Sprintf("error while getting license: %s", err))
+		ReturnError(w, err.Error())
 		return
 	}
 
@@ -52,12 +53,13 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	inactivate := strings.HasSuffix(r.URL.Path, "/inactivate")
+	inactivate := strings.Contains(r.URL.Path, "/inactivate")
 
 	var l lcs.License
 	err := l.Activate(id, inactivate)
 	if err != nil {
-		ReturnError(w, fmt.Sprintf("error while activeness change: %s", err))
+		logrus.WithError(err).Error("Error while activeness change")
+		ReturnError(w, err.Error())
 		return
 	}
 
@@ -78,9 +80,10 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	license := r.FormValue("license")
 
 	var l lcs.License
-	err := l.GetByValue(license)
+	err := l.GetByToken(license)
 	if err != nil {
-		ReturnError(w, fmt.Sprintf("error while getting license: %s", err))
+		logrus.WithError(err).Error("Error while getting license")
+		ReturnError(w, err.Error())
 		return
 	}
 
@@ -88,7 +91,7 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ReturnResponse(w, http.StatusUnauthorized, map[string]interface{}{
 			"valid":   false,
-			"message": fmt.Sprintf("error while validating license: %s", err),
+			"message": err.Error(),
 		})
 
 		return
@@ -96,6 +99,22 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 
 	ReturnResponse(w, 200, map[string]interface{}{
 		"valid": ok,
+	})
+}
+
+func DeleteLicense(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var l lcs.License
+	err := l.DeleteByID(id)
+	if err != nil {
+		logrus.WithError(err).Error("Error while deleting license")
+		ReturnError(w, err.Error())
+		return
+	}
+
+	ReturnResponse(w, 200, map[string]interface{}{
+		"message": "License successfully deleted",
 	})
 }
 
@@ -112,7 +131,6 @@ func ReturnResponse(w http.ResponseWriter, statusCode int, resp map[string]inter
 }
 
 func ReturnError(w http.ResponseWriter, errMsg string) {
-	logrus.Error(errMsg)
 	resp := map[string]interface{}{
 		"error": errMsg,
 	}

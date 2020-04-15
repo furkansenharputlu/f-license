@@ -85,6 +85,17 @@ var getCmd = &cobra.Command{
 	},
 }
 
+var deleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete license",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		var l lcs.License
+		err := l.DeleteByID(args[0])
+		checkErr(err)
+	},
+}
+
 var verifyCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "Verify license",
@@ -113,6 +124,7 @@ func main() {
 	rootCmd.AddCommand(inactivateCmd)
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(verifyCmd)
 	checkErr(rootCmd.Execute())
 }

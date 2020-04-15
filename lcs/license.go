@@ -61,7 +61,7 @@ func (l *License) Add() error {
 	} else {
 		var existingLicense License
 		_ = res.Decode(&existingLicense)
-		return errors.New(fmt.Sprintf("there is already such license: %s", existingLicense.ID.Hex()))
+		return errors.New(fmt.Sprintf("there is already such license with ID: %s", existingLicense.ID.Hex()))
 	}
 
 	l.ID = primitive.NewObjectID()
@@ -131,22 +131,22 @@ func (l *License) Activate(id string, inactivate bool) error {
 		return errors.New("there is no matching license")
 	}
 
+	if res.ModifiedCount == 0 {
+		if inactivate {
+			return errors.New("already inactive")
+		} else {
+			return errors.New("already active")
+		}
+	}
+
 	if err != nil {
 		return errors.New("license cannot be updated")
 	}
 
-	if res.ModifiedCount == 0 {
-		if inactivate {
-			logrus.Infof(`Already inactive: %s`, id)
-		} else {
-			logrus.Infof(`Already activate: %s`, id)
-		}
+	if inactivate {
+		logrus.Infof(`License is successfully inactivated: %s`, id)
 	} else {
-		if inactivate {
-			logrus.Infof(`License is successfully inactivated: %s`, id)
-		} else {
-			logrus.Infof(`License is successfully activated: %s`, id)
-		}
+		logrus.Infof(`License is successfully activated: %s`, id)
 	}
 
 	return nil
@@ -177,4 +177,26 @@ func (l *License) IsLicenseValid(license string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (l *License) DeleteByID(id string) error {
+	licenseID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return errors.New(fmt.Sprintf("ID format error: %s", err))
+	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	filter := bson.M{"_id": licenseID}
+	res, err := licensesCol.DeleteOne(ctx, filter)
+	if res.DeletedCount == 0 {
+		return errors.New(fmt.Sprintf("there is no license with ID: %s", id))
+	}
+
+	if err != nil {
+		return errors.New("license cannot be deleted")
+	}
+
+	logrus.Info("License successfully deleted")
+
+	return nil
 }

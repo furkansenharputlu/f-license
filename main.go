@@ -30,8 +30,9 @@ func main() {
 	adminRouter.Use(AuthenticationMiddleware)
 	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/{id}", GetLicense).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/{id}/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/{id}/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/delete/{id}", DeleteLicense).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/activate/{id}", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/inactivate/{id}", ChangeLicenseActiveness).Methods(http.MethodPut)
 
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
