@@ -38,4 +38,5 @@ In the **example** directory, you can access to a simple usage of the activation
 1. Run `go build -o f-cli ./cli`
 2. Generate `license.json` like [sample_license.json](https://github.com/furkansenharputlu/f-license/blob/master/sample_license.json)
 3. Run `./f-cli generate license.json`
-4. Run `./f-cli -h` to see other commands
+4. Run `./f-cli verify <license-token>`
+5. Run `./f-cli -h` to see other commands

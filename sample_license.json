@@ -3,5 +3,6 @@
   "claims": {
     "username": "Furkan",
     "address": "Istanbul, Turkey"
-  }
+  },
+  "active": true
 }

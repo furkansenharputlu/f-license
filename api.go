@@ -77,17 +77,17 @@ func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 }
 
 func VerifyLicense(w http.ResponseWriter, r *http.Request) {
-	license := r.FormValue("license")
+	token := r.FormValue("token")
 
 	var l lcs.License
-	err := l.GetByToken(license)
+	err := l.GetByToken(token)
 	if err != nil {
 		logrus.WithError(err).Error("Error while getting license")
 		ReturnError(w, err.Error())
 		return
 	}
 
-	ok, err := l.IsLicenseValid(license)
+	ok, err := l.IsLicenseValid(token)
 	if err != nil {
 		ReturnResponse(w, http.StatusUnauthorized, map[string]interface{}{
 			"valid":   false,

@@ -152,13 +152,13 @@ func (l *License) Activate(id string, inactivate bool) error {
 	return nil
 }
 
-func (l *License) IsLicenseValid(license string) (bool, error) {
+func (l *License) IsLicenseValid(tokenString string) (bool, error) {
 
 	if !l.Active {
 		return false, fmt.Errorf("license inactivated")
 	}
 
-	token, err := jwt.Parse(license, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

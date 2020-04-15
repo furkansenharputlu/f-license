@@ -28,11 +28,11 @@ func main() {
 	// Endpoints called by product owners
 	adminRouter := r.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(AuthenticationMiddleware)
-	adminRouter.HandleFunc("/generate", GenerateLicense).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/{id}", GetLicense).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/delete/{id}", DeleteLicense).Methods(http.MethodDelete)
-	adminRouter.HandleFunc("/activate/{id}", ChangeLicenseActiveness).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/inactivate/{id}", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/licenses", GenerateLicense).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/licenses/{id}", GetLicense).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/licenses/{id}/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/licenses/{id}/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/licenses/{id}/delete", DeleteLicense).Methods(http.MethodDelete)
 
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
