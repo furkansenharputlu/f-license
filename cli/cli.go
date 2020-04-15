@@ -16,7 +16,8 @@ var generateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var l lcs.License
 
-		jsonFile, err := os.Open("license.json")
+		// JSON formatted license file path
+		jsonFile, err := os.Open(args[0])
 		checkErr(err)
 
 		byteValue, err := ioutil.ReadAll(jsonFile)

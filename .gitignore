@@ -1,6 +1,7 @@
 .idea/
 f-license
 f-cli
-config.json
 cert.pem
 key.pem
+config.json
+sample_license.json
