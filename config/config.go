@@ -35,3 +35,7 @@ type ServerOptions struct {
 	KeyFile   string     `json:"key_file"`
 	TLSConfig tls.Config `json:"tls_config"`
 }
+
+func init(){
+	Global.Load("config.json")
+}
