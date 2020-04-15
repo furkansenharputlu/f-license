@@ -96,7 +96,7 @@ func (l *License) GetByID(id string) error {
 	return nil
 }
 
-func (l *License) GetByValue(license string) error {
+func (l *License) GetByToken(license string) error {
 	h := fnv.New64a()
 	h.Write([]byte(license))
 	hash := h.Sum64()

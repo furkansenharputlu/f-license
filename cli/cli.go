@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"f-license/lcs"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -13,6 +14,7 @@ import (
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate new license",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var l lcs.License
 
@@ -56,13 +58,40 @@ var inactivateCmd = &cobra.Command{
 	},
 }
 
+var getByIDFlag string
+var getByTokenFlag string
+
+var getCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get license",
+	Run: func(cmd *cobra.Command, args []string) {
+		var l lcs.License
+		if getByIDFlag != "" {
+			err := l.GetByID(getByIDFlag)
+			logrus.Info("Passed flag value:", getByIDFlag)
+			checkErr(err)
+		} else if getByTokenFlag != "" {
+			err := l.GetByToken(getByTokenFlag)
+			logrus.Info("Passed flag value:", getByTokenFlag)
+			checkErr(err)
+		} else {
+			checkErr(errors.New("pass id or token"))
+		}
+
+		licenseBytes, err := json.MarshalIndent(l, "", "    ")
+		checkErr(err)
+
+		fmt.Println(string(licenseBytes))
+	},
+}
+
 var verifyCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "Verify license",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var l lcs.License
-		err := l.GetByValue(args[0])
+		err := l.GetByToken(args[0])
 		checkErr(err)
 
 		valid, err := l.IsLicenseValid(args[0])
@@ -77,9 +106,13 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
+	getCmd.Flags().StringVarP(&getByIDFlag, "id", "i", "", "License ID")
+	getCmd.Flags().StringVarP(&getByTokenFlag, "token", "t", "", "License token")
+
 	rootCmd.AddCommand(activateCmd)
 	rootCmd.AddCommand(inactivateCmd)
 	rootCmd.AddCommand(generateCmd)
+	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(verifyCmd)
 	checkErr(rootCmd.Execute())
 }
