@@ -1,202 +1,97 @@
 package lcs
 
 import (
-	"context"
-	"errors"
 	"f-license/config"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"hash/fnv"
-	"time"
+	"io/ioutil"
+	"strings"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var licensesCol *mongo.Collection
+var VerifyKey interface{}
 
-func init() {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.MongoURL))
-	if err != nil {
-		logrus.Fatalf("Problem while connecting to Mongo: %s", err)
+func ReadKeys() {
+
+	if config.Global.ServerOptions.CertFile != "" {
+		verifyBytes, err := ioutil.ReadFile(config.Global.ServerOptions.CertFile)
+		fatalf("Couldn't read public key: %s", err)
+
+		VerifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
+		fatalf("Couldn't parse public key: %s", err)
 	}
+}
 
-	licensesCol = MongoClient.Database("f-license").Collection("licenses")
+func fatalf(format string, err error) {
+	if err != nil {
+		logrus.Fatalf(format, err)
+	}
 }
 
 type License struct {
-	ID     primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Type   string             `bson:"type" json:"type"`
-	Hash   string             `bson:"hash" json:"-"`
-	Token  string             `bson:"token" json:"token"`
-	Claims jwt.MapClaims      `bson:"claims" json:"claims"`
-	Active bool               `bson:"active" json:"active"`
+	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Type    string             `bson:"type" json:"type"`
+	Alg     string             `bson:"alg" json:"alg"`
+	Hash    string             `bson:"hash" json:"-"`
+	Token   string             `bson:"token" json:"token"`
+	Claims  jwt.MapClaims      `bson:"claims" json:"claims"`
+	Active  bool               `bson:"active" json:"active"`
+	signKey interface{}
 }
 
-func (l *License) Add() error {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, l.Claims)
-	signedString, err := token.SignedString([]byte(config.Global.Secret))
+func (l *License) Generate() error {
+	if l.Alg == "" {
+		l.Alg = "HS256"
+	}
+	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.Alg), l.Claims)
+
+	l.LoadSignKey()
+
+	signedString, err := token.SignedString(l.signKey)
 	if err != nil {
-		logrus.Error("Error signing token:", err)
+		logrus.Errorf("Error while signing token: %s", err)
 	}
 
 	l.Token = signedString
-
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 	h := fnv.New64a()
 	h.Write([]byte(signedString))
 	l.Hash = fmt.Sprintf("%v", h.Sum64())
 
-	filter := bson.M{"hash": l.Hash}
-	res := licensesCol.FindOne(ctx, filter)
-	err = res.Err()
-	if err != nil {
-		if err != mongo.ErrNoDocuments {
-			return err
-		}
+	return nil
+}
+
+func (l *License) LoadSignKey() {
+	if strings.HasPrefix(l.Alg, "HS") {
+		l.signKey = []byte(config.Global.HMACSecret)
 	} else {
-		var existingLicense License
-		_ = res.Decode(&existingLicense)
-		return errors.New(fmt.Sprintf("there is already such license with ID: %s", existingLicense.ID.Hex()))
+		signBytes, err := ioutil.ReadFile(config.Global.RSAPrivateKeyFile)
+		fatalf("Couldn't read rsa private key file: %s", err)
+
+		l.signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
+		fatalf("Couldn't parse private key: %s", err)
 	}
-
-	l.ID = primitive.NewObjectID()
-
-	update := bson.M{"$set": l}
-	_, err = licensesCol.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
-	if err != nil {
-		return errors.New(fmt.Sprintf("error while inserting license: %s", err))
-	}
-
-	logrus.Info("License successfully generated")
-
-	return nil
-}
-
-func (l *License) GetByID(id string) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"_id": licenseID}
-	res := licensesCol.FindOne(ctx, filter)
-	err = res.Err()
-	if err != nil {
-		return err
-	}
-
-	_ = res.Decode(l)
-
-	return nil
-}
-
-func (l *License) GetByToken(license string) error {
-	h := fnv.New64a()
-	h.Write([]byte(license))
-	hash := h.Sum64()
-	hashStr := fmt.Sprintf("%v", hash)
-
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"hash": hashStr}
-	res := licensesCol.FindOne(ctx, filter)
-	err := res.Err()
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return fmt.Errorf("license not found")
-		}
-		return fmt.Errorf("error while getting license: %s", err)
-	}
-
-	_ = res.Decode(l)
-
-	return nil
-}
-
-func (l *License) Activate(id string, inactivate bool) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
-	filter := bson.M{"_id": bson.M{"$eq": licenseID}}
-	update := bson.M{"$set": bson.M{"active": !inactivate}}
-	res, err := licensesCol.UpdateOne(context.Background(), filter, update)
-	if res.MatchedCount == 0 {
-		return errors.New("there is no matching license")
-	}
-
-	if res.ModifiedCount == 0 {
-		if inactivate {
-			return errors.New("already inactive")
-		} else {
-			return errors.New("already active")
-		}
-	}
-
-	if err != nil {
-		return errors.New("license cannot be updated")
-	}
-
-	if inactivate {
-		logrus.Infof(`License is successfully inactivated: %s`, id)
-	} else {
-		logrus.Infof(`License is successfully activated: %s`, id)
-	}
-
-	return nil
 }
 
 func (l *License) IsLicenseValid(tokenString string) (bool, error) {
-
 	if !l.Active {
-		return false, fmt.Errorf("license inactivated")
+		return false, nil
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		switch token.Method.(type) {
+		case *jwt.SigningMethodHMAC:
+			return []byte(config.Global.HMACSecret), nil
+		case *jwt.SigningMethodRSA:
+			return VerifyKey, nil
+		default:
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
-		return []byte(config.Global.Secret), nil
 	})
 
-	if err != nil {
-		logrus.Error(err)
-		return false, err
-	}
-
-	if !token.Valid {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (l *License) DeleteByID(id string) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"_id": licenseID}
-	res, err := licensesCol.DeleteOne(ctx, filter)
-	if res.DeletedCount == 0 {
-		return errors.New(fmt.Sprintf("there is no license with ID: %s", id))
-	}
-
-	if err != nil {
-		return errors.New("license cannot be deleted")
-	}
-
-	logrus.Info("License successfully deleted")
-
-	return nil
+	return token.Valid, err
 }

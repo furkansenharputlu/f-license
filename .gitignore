@@ -3,5 +3,6 @@ f-license
 f-cli
 cert.pem
 key.pem
+private_key.pem
 config.json
 sample_license.json

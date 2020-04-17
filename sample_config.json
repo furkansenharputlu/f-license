@@ -1,5 +1,6 @@
 {
-  "secret": "test-secret",
+  "hmac_secret": "test-secret",
+  "rsa_private_key_file": "private_key.pem",
   "port": 4242,
   "admin_secret": "admin123",
   "mongo_url": "mongodb://localhost:27017",

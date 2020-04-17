@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"f-license/config"
 	"f-license/lcs"
+	"f-license/storage"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var generateCmd = &cobra.Command{
@@ -16,7 +19,7 @@ var generateCmd = &cobra.Command{
 	Short: "Generate new license",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var l lcs.License
+		var l *lcs.License
 
 		// JSON formatted license file path
 		jsonFile, err := os.Open(args[0])
@@ -28,11 +31,21 @@ var generateCmd = &cobra.Command{
 		err = json.Unmarshal(byteValue, &l)
 		checkErr(err)
 
-		err = l.Add()
+		err = l.Generate()
 		checkErr(err)
 
-		fmt.Println("ID:", l.ID.Hex())
-		fmt.Println("Token:", l.Token)
+		err = storage.LicenseHandler.AddIfNotExisting(l)
+		checkErr(err)
+
+		respBytes, err := json.MarshalIndent(struct {
+			ID    string `json:"id"`
+			Token string `json:"token"`
+		}{
+			ID:    l.ID.Hex(),
+			Token: l.Token,
+		}, "", "    ")
+
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), string(respBytes))
 	},
 }
 
@@ -41,8 +54,7 @@ var activateCmd = &cobra.Command{
 	Short: "Activate license",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var l lcs.License
-		err := l.Activate(args[0], false)
+		err := storage.LicenseHandler.Activate(args[0], false)
 		checkErr(err)
 	},
 }
@@ -52,8 +64,7 @@ var inactivateCmd = &cobra.Command{
 	Short: "Inactivate license",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var l lcs.License
-		err := l.Activate(args[0], true)
+		err := storage.LicenseHandler.Activate(args[0], true)
 		checkErr(err)
 	},
 }
@@ -67,12 +78,12 @@ var getCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var l lcs.License
 		if getByIDFlag != "" {
-			err := l.GetByID(getByIDFlag)
-			logrus.Info("Passed flag value:", getByIDFlag)
+			err := storage.LicenseHandler.GetByID(getByIDFlag, &l)
+			logrus.Info("Passed id value: ", getByIDFlag)
 			checkErr(err)
 		} else if getByTokenFlag != "" {
-			err := l.GetByToken(getByTokenFlag)
-			logrus.Info("Passed flag value:", getByTokenFlag)
+			err := storage.LicenseHandler.GetByToken(getByTokenFlag, &l)
+			logrus.Info("Passed token value: ", getByTokenFlag)
 			checkErr(err)
 		} else {
 			checkErr(errors.New("pass id or token"))
@@ -81,8 +92,18 @@ var getCmd = &cobra.Command{
 		licenseBytes, err := json.MarshalIndent(l, "", "    ")
 		checkErr(err)
 
-		fmt.Println(string(licenseBytes))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), string(licenseBytes))
 	},
+}
+
+func clearFlags() {
+	getByIDFlag = ""
+	getByTokenFlag = ""
+}
+
+func setGetCMDFlags() {
+	getCmd.Flags().StringVarP(&getByIDFlag, "id", "i", "", "License ID")
+	getCmd.Flags().StringVarP(&getByTokenFlag, "token", "t", "", "License token")
 }
 
 var deleteCmd = &cobra.Command{
@@ -90,8 +111,7 @@ var deleteCmd = &cobra.Command{
 	Short: "Delete license",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var l lcs.License
-		err := l.DeleteByID(args[0])
+		err := storage.LicenseHandler.DeleteByID(args[0])
 		checkErr(err)
 	},
 }
@@ -102,12 +122,13 @@ var verifyCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var l lcs.License
-		err := l.GetByToken(args[0])
+		err := storage.LicenseHandler.GetByToken(args[0], &l)
 		checkErr(err)
 
 		valid, err := l.IsLicenseValid(args[0])
 		checkErr(err)
-		fmt.Println(valid)
+
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%v", valid)
 	},
 }
 
@@ -117,8 +138,10 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	getCmd.Flags().StringVarP(&getByIDFlag, "id", "i", "", "License ID")
-	getCmd.Flags().StringVarP(&getByTokenFlag, "token", "t", "", "License token")
+	config.Global.Load("config.json")
+	storage.Connect()
+
+	setGetCMDFlags()
 
 	rootCmd.AddCommand(activateCmd)
 	rootCmd.AddCommand(inactivateCmd)

@@ -3,18 +3,21 @@ package config
 import (
 	"crypto/tls"
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
+
+	"github.com/sirupsen/logrus"
 )
 
 var Global = &Config{}
 
 type Config struct {
-	Secret        string        `json:"secret"`
-	Port          int           `json:"port"`
-	AdminSecret   string        `json:"admin_secret"`
-	MongoURL      string        `json:"mongo_url"`
-	ServerOptions ServerOptions `json:"server_options"`
+	HMACSecret        string        `json:"hmac_secret"`
+	RSAPrivateKeyFile string        `json:"rsa_private_key_file"`
+	Port              int           `json:"port"`
+	AdminSecret       string        `json:"admin_secret"`
+	MongoURL          string        `json:"mongo_url"`
+	DBName            string        `json:"db_name"`
+	ServerOptions     ServerOptions `json:"server_options"`
 }
 
 func (c *Config) Load(filePath string) {
@@ -34,8 +37,4 @@ type ServerOptions struct {
 	CertFile  string     `json:"cert_file"`
 	KeyFile   string     `json:"key_file"`
 	TLSConfig tls.Config `json:"tls_config"`
-}
-
-func init(){
-	Global.Load("config.json")
 }

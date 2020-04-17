@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"f-license/config"
 	"f-license/lcs"
+	"f-license/storage"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 func GenerateLicense(w http.ResponseWriter, r *http.Request) {
@@ -18,9 +20,16 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 	var l lcs.License
 	_ = json.Unmarshal(bytes, &l)
 
-	err := l.Add()
+	err := l.Generate()
 	if err != nil {
-		logrus.WithError(err).Error("Error while generating license")
+		logrus.WithError(err).Error("License couldn't be generated")
+		ReturnError(w, err.Error())
+		return
+	}
+
+	err = storage.LicenseHandler.AddIfNotExisting(&l)
+	if err != nil {
+		logrus.WithError(err).Error("License couldn't be stored")
 		ReturnError(w, err.Error())
 		return
 	}
@@ -35,7 +44,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	var l lcs.License
-	err := l.GetByID(id)
+	err := storage.LicenseHandler.GetByID(id, &l)
 	if err != nil {
 		ReturnError(w, err.Error())
 		return
@@ -55,8 +64,7 @@ func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 
 	inactivate := strings.Contains(r.URL.Path, "/inactivate")
 
-	var l lcs.License
-	err := l.Activate(id, inactivate)
+	err := storage.LicenseHandler.Activate(id, inactivate)
 	if err != nil {
 		logrus.WithError(err).Error("Error while activeness change")
 		ReturnError(w, err.Error())
@@ -80,7 +88,7 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 
 	var l lcs.License
-	err := l.GetByToken(token)
+	err := storage.LicenseHandler.GetByToken(token, &l)
 	if err != nil {
 		logrus.WithError(err).Error("Error while getting license")
 		ReturnError(w, err.Error())
@@ -105,8 +113,7 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 func DeleteLicense(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	var l lcs.License
-	err := l.DeleteByID(id)
+	err := storage.LicenseHandler.DeleteByID(id)
 	if err != nil {
 		logrus.WithError(err).Error("Error while deleting license")
 		ReturnError(w, err.Error())

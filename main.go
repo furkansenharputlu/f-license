@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"f-license/config"
+	"f-license/storage"
 	"fmt"
 
 	"github.com/gorilla/mux"
@@ -24,6 +25,29 @@ func main() {
 
 	intro()
 
+	config.Global.Load("config.json")
+	storage.Connect()
+
+	router := GenerateRouter()
+
+	addr := fmt.Sprintf(":%d", config.Global.Port)
+	certFile := config.Global.ServerOptions.CertFile
+	keyFile := config.Global.ServerOptions.KeyFile
+
+	if config.Global.ServerOptions.EnableTLS {
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      router,
+			TLSConfig:    &config.Global.ServerOptions.TLSConfig,
+			TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+		}
+		log.Fatal(srv.ListenAndServeTLS(certFile, keyFile))
+	} else {
+		log.Fatal(http.ListenAndServe(addr, router))
+	}
+}
+
+func GenerateRouter() *mux.Router {
 	r := mux.NewRouter()
 	// Endpoints called by product owners
 	adminRouter := r.PathPrefix("/admin").Subrouter()
@@ -38,19 +62,5 @@ func main() {
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)
 	r.HandleFunc("/license/ping", Ping).Methods(http.MethodPost)
 
-	addr := fmt.Sprintf(":%d", config.Global.Port)
-	certFile := config.Global.ServerOptions.CertFile
-	keyFile := config.Global.ServerOptions.KeyFile
-
-	if config.Global.ServerOptions.EnableTLS {
-		srv := &http.Server{
-			Addr:         addr,
-			Handler:      r,
-			TLSConfig:    &config.Global.ServerOptions.TLSConfig,
-			TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
-		}
-		log.Fatal(srv.ListenAndServeTLS(certFile, keyFile))
-	} else {
-		log.Fatal(http.ListenAndServe(addr, r))
-	}
+	return r
 }
