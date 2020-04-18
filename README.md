@@ -37,7 +37,7 @@ import "github.com/furkansenharputlu/f-license/fclient"
 ### Remote verification
 
 ```go
-verified, err := fclient.VerifyRemotely("http://localhost:4242", "license-key")
+verified, err := fclient.VerifyRemotely("https://localhost:4242", "trusted-server-cert", "license-key")
 ```
 
 ### Local verification

@@ -164,7 +164,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 		_ = json.Unmarshal(resBytes, &resMap)
 
 		// client code
-		verified, _ := fclient.VerifyRemotely(tr.server.URL, resMap["token"])
+		verified, _ := fclient.VerifyRemotely(tr.server.URL, "", resMap["token"])
 		assert.True(t, verified)
 	})
 
@@ -186,7 +186,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 		_ = json.Unmarshal(resBytes, &resMap)
 
 		// client code
-		verified, _ := fclient.VerifyRemotely(tr.server.URL, resMap["token"])
+		verified, _ := fclient.VerifyRemotely(tr.server.URL, "", resMap["token"])
 		assert.True(t, verified)
 	})
 }

@@ -1,6 +1,8 @@
 package fclient
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +14,25 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-func VerifyRemotely(serverURL string, licenseKey string) (verified bool, err error) {
+func VerifyRemotely(serverURL string, cert string, licenseKey string) (verified bool, err error) {
 	form := url.Values{}
 	form.Add("token", licenseKey)
-	resp, err := http.Post(serverURL+"/license/verify", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+
+	request, _ := http.NewRequest(http.MethodPost, serverURL+"/license/verify", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM([]byte(cert))
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		},
+	}
+
+	resp, err := client.Do(request)
 	if err != nil {
 		return false, err
 	}
