@@ -52,6 +52,6 @@ If you are not using `Go`, you can easily implement their equivalent in your app
 
 1. Run `go build -o f-cli ./cli`
 2. Generate `license.json` like [sample_license.json](https://github.com/furkansenharputlu/f-license/blob/master/sample_license.json)
-3. Run `./f-cli generate license.json`
-4. Run `./f-cli verify <license-token>`
-5. Run `./f-cli -h` to see other commands
+
+[![asciicast](https://asciinema.org/a/hMpcWAo883ukWwmz95839Vnm2.svg)](https://asciinema.org/a/hMpcWAo883ukWwmz95839Vnm2)
+

@@ -1,6 +1,6 @@
 {
   "type": "Trial",
-  "alg": "HS256",
+  "alg": "HS512",
   "claims": {
     "username": "Furkan",
     "address": "Istanbul, Turkey"
