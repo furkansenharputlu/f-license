@@ -1,4 +1,4 @@
-module f-license
+module github.com/furkansenharputlu/f-license
 
 go 1.12
 
