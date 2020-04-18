@@ -5,6 +5,7 @@
   "port": 4242,
   "admin_secret": "admin123",
   "mongo_url": "mongodb://localhost:27017",
+  "db_name": "f-license",
   "server_options": {
     "enable_tls": true,
     "cert_file": "cert.pem",
