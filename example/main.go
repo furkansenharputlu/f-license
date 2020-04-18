@@ -1,7 +1,7 @@
 package main
 
 import (
-	"f-license/fclient"
+	"f-license/client"
 	"fmt"
 	"time"
 )
@@ -51,7 +51,7 @@ func main() {
 
 func localVerification() {
 	for {
-		LicenseValid, err := fclient.VerifyLocally(secret, licenseKey)
+		LicenseValid, err := client.VerifyLocally(secret, licenseKey)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -63,7 +63,7 @@ func localVerification() {
 
 func remoteVerification() {
 	for {
-		LicenseValid, err := fclient.VerifyRemotely("https://localhost:4242", secret, licenseKey)
+		LicenseValid, err := client.VerifyRemotely("https://localhost:4242", secret, licenseKey)
 		if err != nil {
 			fmt.Println(err)
 		}

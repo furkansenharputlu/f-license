@@ -7,8 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"f-license/client"
 	"f-license/config"
-	"f-license/fclient"
 	"f-license/lcs"
 	"f-license/storage"
 	"io"
@@ -127,7 +127,7 @@ func TestClientVerifyLocally(t *testing.T) {
 		l.Alg = "HS512"
 		_ = l.Generate()
 
-		verified, _ := fclient.VerifyLocally("test-secret", l.Token)
+		verified, _ := client.VerifyLocally("test-secret", l.Token)
 		assert.True(t, verified)
 	})
 
@@ -146,7 +146,7 @@ func TestClientVerifyLocally(t *testing.T) {
 		pkInBytes, _ := ioutil.ReadFile(publicKeyFile.Name())
 		publicKey := string(pkInBytes)
 
-		verified, _ := fclient.VerifyLocally(publicKey, l.Token)
+		verified, _ := client.VerifyLocally(publicKey, l.Token)
 		assert.True(t, verified)
 	})
 }
@@ -164,7 +164,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 		_ = json.Unmarshal(resBytes, &resMap)
 
 		// client code
-		verified, _ := fclient.VerifyRemotely(tr.server.URL, "", resMap["token"])
+		verified, _ := client.VerifyRemotely(tr.server.URL, "", resMap["token"])
 		assert.True(t, verified)
 	})
 
@@ -186,7 +186,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 		_ = json.Unmarshal(resBytes, &resMap)
 
 		// client code
-		verified, _ := fclient.VerifyRemotely(tr.server.URL, "", resMap["token"])
+		verified, _ := client.VerifyRemotely(tr.server.URL, "", resMap["token"])
 		assert.True(t, verified)
 	})
 }

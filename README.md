@@ -28,22 +28,22 @@ See the latest [Documentation](https://github.com/furkansenharputlu/f-license/wi
 
 ## Embed client code to your app
 
-If your app's language is `Go`, you need to add just one line code to your application after importing `fclient`.
+If your app's language is `Go`, you need to add just one line code to your application after importing `client`.
 
 ```go
-import "github.com/furkansenharputlu/f-license/fclient"
+import "github.com/furkansenharputlu/f-license/client"
 ```
 
 ### Remote verification
 
 ```go
-verified, err := fclient.VerifyRemotely("https://localhost:4242", "trusted-server-cert", "license-key")
+verified, err := client.VerifyRemotely("https://localhost:4242", "trusted-server-cert", "license-key")
 ```
 
 ### Local verification
 
 ```go
-verified, err := fclient.VerifyLocally("secret-or-public-key", "license-key")
+verified, err := client.VerifyLocally("secret-or-public-key", "license-key")
 ```
 
 If you are not using `Go`, you can easily implement their equivalent in your app's languge for now. In future, we will implement for different languages.

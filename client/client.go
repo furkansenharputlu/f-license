@@ -1,4 +1,4 @@
-package fclient
+package client
 
 import (
 	"crypto/tls"
