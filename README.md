@@ -5,11 +5,11 @@
 
 # Features
 
-- Generating license key with a private secret
+- Generating license keys with one of HMAC and RSA algorithms
 - Remote verification of a license key
 - Local verification of a license key
 - Storing licence keys in MongoDB
-- Activating and inactivating customer license keys remotely
+- Activating and inactivating customer license keys
 - **f-cli** tool to manage licenses by terminal
 
 See the latest [Documentation](https://github.com/furkansenharputlu/f-license/wiki).
