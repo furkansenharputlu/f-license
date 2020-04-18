@@ -16,13 +16,6 @@ var VerifyKey interface{}
 
 func ReadKeys() {
 
-	if config.Global.ServerOptions.CertFile != "" {
-		verifyBytes, err := ioutil.ReadFile(config.Global.ServerOptions.CertFile)
-		fatalf("Couldn't read public key: %s", err)
-
-		VerifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
-		fatalf("Couldn't parse public key: %s", err)
-	}
 }
 
 func fatalf(format string, err error) {
@@ -32,14 +25,15 @@ func fatalf(format string, err error) {
 }
 
 type License struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Type    string             `bson:"type" json:"type"`
-	Alg     string             `bson:"alg" json:"alg"`
-	Hash    string             `bson:"hash" json:"-"`
-	Token   string             `bson:"token" json:"token"`
-	Claims  jwt.MapClaims      `bson:"claims" json:"claims"`
-	Active  bool               `bson:"active" json:"active"`
-	signKey interface{}
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Type      string             `bson:"type" json:"type"`
+	Alg       string             `bson:"alg" json:"alg"`
+	Hash      string             `bson:"hash" json:"-"`
+	Token     string             `bson:"token" json:"token"`
+	Claims    jwt.MapClaims      `bson:"claims" json:"claims"`
+	Active    bool               `bson:"active" json:"active"`
+	signKey   interface{}
+	verifyKey interface{}
 }
 
 func (l *License) Generate() error {
@@ -49,10 +43,11 @@ func (l *License) Generate() error {
 	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.Alg), l.Claims)
 
 	l.LoadSignKey()
+	l.LoadVerifyKey()
 
 	signedString, err := token.SignedString(l.signKey)
 	if err != nil {
-		logrus.Errorf("Error while signing token: %s", err)
+		return err
 	}
 
 	l.Token = signedString
@@ -76,18 +71,35 @@ func (l *License) LoadSignKey() {
 	}
 }
 
+func (l *License) LoadVerifyKey() {
+	if strings.HasPrefix(l.Alg, "HS") {
+		l.verifyKey = []byte(config.Global.HMACSecret)
+	} else {
+		verifyBytes, err := ioutil.ReadFile(config.Global.RSAPublicKeyFile)
+		fatalf("Couldn't read public key: %s", err)
+
+		l.verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
+		fatalf("Couldn't parse public key: %s", err)
+	}
+}
+
 func (l *License) IsLicenseValid(tokenString string) (bool, error) {
 	if !l.Active {
 		return false, nil
+	}
+
+	if l.verifyKey == nil {
+		l.LoadVerifyKey()
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		switch token.Method.(type) {
 		case *jwt.SigningMethodHMAC:
-			return []byte(config.Global.HMACSecret), nil
+			return l.verifyKey, nil
 		case *jwt.SigningMethodRSA:
-			return VerifyKey, nil
+
+			return l.verifyKey, nil
 		default:
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}

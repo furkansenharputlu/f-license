@@ -17,7 +17,8 @@ func TestGenerateLicense(t *testing.T) {
 
 	path := "/admin/licenses"
 
-	var l lcs.License
+	l := sampleLicense()
+	//l.Alg="RS256"
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
 
@@ -83,7 +84,7 @@ func TestDeleteLicense(t *testing.T) {
 
 	path := "/admin/licenses"
 
-	var l lcs.License
+	l := sampleLicense()
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
 

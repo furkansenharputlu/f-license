@@ -1,8 +1,8 @@
 {
   "type": "Trial",
-  "alg": "RS256",
+  "alg": "HS256",
   "claims": {
-    "username": "Furkan",
+    "username": "Furkaasdn",
     "address": "Istanbul, Turkey"
   },
   "active": true

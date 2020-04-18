@@ -36,8 +36,8 @@ aglbxDAYiMqXkg==
 var LicenseValid bool
 
 func main() {
-	localVerification()
-	//remoteVerification()
+	//localVerification()
+	remoteVerification()
 
 	if LicenseValid {
 		fmt.Println("An operation can be done if the license is valid")
@@ -60,7 +60,7 @@ func remoteVerification() {
 	for {
 		LicenseValid, err := fclient.VerifyRemotely("http://localhost:4242", license)
 		if err != nil {
-			continue
+			fmt.Println(err)
 		}
 
 		fmt.Println(LicenseValid)

@@ -31,6 +31,11 @@ func VerifyRemotely(serverURL string, licenseKey string) (verified bool, err err
 		return false, err
 	}
 
+	errMsg, ok := res["error"]
+	if ok {
+		return false, errors.New(errMsg.(string))
+	}
+
 	return res["valid"].(bool), nil
 }
 

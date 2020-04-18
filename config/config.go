@@ -13,6 +13,7 @@ var Global = &Config{}
 type Config struct {
 	HMACSecret        string        `json:"hmac_secret"`
 	RSAPrivateKeyFile string        `json:"rsa_private_key_file"`
+	RSAPublicKeyFile  string        `json:"rsa_public_key_file"`
 	Port              int           `json:"port"`
 	AdminSecret       string        `json:"admin_secret"`
 	MongoURL          string        `json:"mongo_url"`
