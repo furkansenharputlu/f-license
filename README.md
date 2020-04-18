@@ -26,12 +26,27 @@ See the latest [Documentation](https://github.com/furkansenharputlu/f-license/wi
 2. Run `go build`
 3. Run `./f-license` 
 
-## Embed client code to your example app
+## Embed client code to your app
 
-In the **example** directory, you can access to a simple usage of the activation in your Go application. There are two variables you need to set:
+If your app's language is `Go`, you need to add just one line code to your application after importing `fclient`.
 
-- `license`: a license created by **f-license** 
-- `secret`: a private secret to validate the license
+```go
+import "github.com/furkansenharputlu/f-license/fclient"
+```
+
+### Remote verification
+
+```go
+verified, err := fclient.VerifyRemotely("http://localhost:4242", "license-key")
+```
+
+### Local verification
+
+```go
+verified, err := fclient.VerifyLocally("secret-or-public-key", "license-key")
+```
+
+If you are not using `Go`, you can easily implement their equivalent in your app's languge for now. In future, we will implement for different languages.
 
 ## CLI usage
 

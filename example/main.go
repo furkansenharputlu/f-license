@@ -7,7 +7,7 @@ import (
 )
 
 // make the license configurable
-var license = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiSXN0YW5idWwsIFR1cmtleSIsInVzZXJuYW1lIjoiRnVya2FuIn0.Jn6tAhXlUpIrbYhfCFfiLJFgAVvMUlUnRuHurQbFzThx2VLaFcxmvhxUAs0EKYjsZqdV6QmFf5WF6mj8z_V7j0FcbFCc2kgNDZm8cH6OiCTCbaxk-JjmVCJL_rXeHPxzq56vNO0TM5f6SA0OrDSH6DxrVxLlIYZM-U52aDpzbfRZMITVz2QZ1Yth9s-FlqODwKLoZhnxslti1h2vCJDwsRyHCnNhrjPK6IYTn0y_fXlnONw2h4rTrb1ymqtN_an0Drk0rGjL8bViG1Y5tSnkM-6W0Cx9I0gLB2_5d01t2DKRoNMJ_t8clZuKRmBaZ7qSTw-pVQ5NvI1Iqq27PnAPYw"
+var licenseKey = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiSXN0YW5idWwsIFR1cmtleSIsInVzZXJuYW1lIjoiRnVya2FuIn0.Jn6tAhXlUpIrbYhfCFfiLJFgAVvMUlUnRuHurQbFzThx2VLaFcxmvhxUAs0EKYjsZqdV6QmFf5WF6mj8z_V7j0FcbFCc2kgNDZm8cH6OiCTCbaxk-JjmVCJL_rXeHPxzq56vNO0TM5f6SA0OrDSH6DxrVxLlIYZM-U52aDpzbfRZMITVz2QZ1Yth9s-FlqODwKLoZhnxslti1h2vCJDwsRyHCnNhrjPK6IYTn0y_fXlnONw2h4rTrb1ymqtN_an0Drk0rGjL8bViG1Y5tSnkM-6W0Cx9I0gLB2_5d01t2DKRoNMJ_t8clZuKRmBaZ7qSTw-pVQ5NvI1Iqq27PnAPYw"
 
 // pin this to your app
 const secret = `-----BEGIN CERTIFICATE-----
@@ -46,7 +46,7 @@ func main() {
 
 func localVerification() {
 	for {
-		LicenseValid, err := fclient.VerifyLocally(license, secret)
+		LicenseValid, err := fclient.VerifyLocally(secret, licenseKey)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -58,7 +58,7 @@ func localVerification() {
 
 func remoteVerification() {
 	for {
-		LicenseValid, err := fclient.VerifyRemotely("http://localhost:4242", license)
+		LicenseValid, err := fclient.VerifyRemotely("http://localhost:4242", licenseKey)
 		if err != nil {
 			fmt.Println(err)
 		}

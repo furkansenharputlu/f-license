@@ -127,7 +127,7 @@ func TestClientVerifyLocally(t *testing.T) {
 		l.Alg = "HS512"
 		_ = l.Generate()
 
-		verified, _ := fclient.VerifyLocally(l.Token, "test-secret")
+		verified, _ := fclient.VerifyLocally("test-secret", l.Token)
 		assert.True(t, verified)
 	})
 
@@ -146,7 +146,7 @@ func TestClientVerifyLocally(t *testing.T) {
 		pkInBytes, _ := ioutil.ReadFile(publicKeyFile.Name())
 		publicKey := string(pkInBytes)
 
-		verified, _ := fclient.VerifyLocally(l.Token, publicKey)
+		verified, _ := fclient.VerifyLocally(publicKey, l.Token)
 		assert.True(t, verified)
 	})
 }

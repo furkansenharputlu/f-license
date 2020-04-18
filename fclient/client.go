@@ -39,7 +39,7 @@ func VerifyRemotely(serverURL string, licenseKey string) (verified bool, err err
 	return res["valid"].(bool), nil
 }
 
-func VerifyLocally(licenseKey string, publicKey string) (verified bool, err error) {
+func VerifyLocally(publicKey string, licenseKey string) (verified bool, err error) {
 	if publicKey == "" {
 		return false, errors.New("public key shouldn't be empty")
 	}
