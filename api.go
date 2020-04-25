@@ -52,6 +52,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 
 	ReturnResponse(w, 200, map[string]interface{}{
 		"id":     l.ID,
+		"alg":    l.Alg,
 		"type":   l.Type,
 		"claims": l.Claims,
 		"active": l.Active,

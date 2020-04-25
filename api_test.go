@@ -54,6 +54,7 @@ func TestGetLicense(t *testing.T) {
 	_ = json.Unmarshal(resBytes, &retLicense)
 
 	assert.Equal(t, l.Type, retLicense.Type)
+	assert.Equal(t, l.Alg, retLicense.Alg)
 	assert.Equal(t, l.Claims, retLicense.Claims)
 	assert.Equal(t, l.Active, retLicense.Active)
 	assert.Equal(t, expectedID, retLicense.ID.Hex())
