@@ -50,14 +50,18 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ReturnResponse(w, 200, map[string]interface{}{
-		"id":     l.ID,
-		"alg":    l.Alg,
-		"type":   l.Type,
-		"claims": l.Claims,
-		"active": l.Active,
-		"token":  l.Token,
-	})
+	ReturnResponse(w, 200, l)
+}
+
+func GetAllLicenses(w http.ResponseWriter, r *http.Request) {
+	var licenses []*lcs.License
+	err := storage.LicenseHandler.GetAll(&licenses)
+	if err != nil {
+		ReturnError(w, err.Error())
+		return
+	}
+
+	ReturnResponse(w, 200, licenses)
 }
 
 func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +134,7 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ReturnResponse(w http.ResponseWriter, statusCode int, resp map[string]interface{}) {
+func ReturnResponse(w http.ResponseWriter, statusCode int, resp interface{}) {
 	bytes, _ := json.Marshal(resp)
 
 	w.Header().Set("Content-Type", "application/json")

@@ -20,6 +20,7 @@ type Handler interface {
 	AddIfNotExisting(l *lcs.License) error
 	Activate(id string, inactivate bool) error
 	GetByID(id string, l *lcs.License) error
+	GetAll(licenses *[]*lcs.License) error
 	GetByToken(token string, l *lcs.License) error
 	DeleteByID(id string) error
 	DropDatabase() error
@@ -134,9 +135,8 @@ func (h licenseMongoHandler) GetByID(id string, l *lcs.License) error {
 		return errors.New(fmt.Sprintf("ID format error: %s", err))
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	filter := bson.M{"_id": licenseID}
-	res := h.col.FindOne(ctx, filter)
+	res := h.col.FindOne(context.Background(), filter)
 	err = res.Err()
 	if err != nil {
 		return err
@@ -145,6 +145,29 @@ func (h licenseMongoHandler) GetByID(id string, l *lcs.License) error {
 	_ = res.Decode(l)
 
 	return nil
+}
+
+func (h licenseMongoHandler) GetAll(licenses *[]*lcs.License) error {
+	cur, err := h.col.Find(context.Background(), bson.D{})
+	if err != nil {
+		return err
+	}
+
+	defer cur.Close(context.Background())
+
+	for cur.Next(context.Background()) {
+
+		var l lcs.License
+		err := cur.Decode(&l)
+		if err != nil {
+			return err
+		}
+
+		*licenses = append(*licenses, &l)
+
+	}
+
+	return cur.Err()
 }
 
 func (h licenseMongoHandler) GetByToken(token string, l *lcs.License) error {
