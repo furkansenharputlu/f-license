@@ -46,7 +46,7 @@ verified, err := client.VerifyRemotely("https://localhost:4242", "trusted-server
 verified, err := client.VerifyLocally("secret-or-public-key", "license-key")
 ```
 
-If you are not using `Go`, you can easily implement their equivalent in your app's languge for now. In future, we will implement for different languages.
+If you are not using `Go`, you can easily implement their equivalent in your app's language for now. In future, we will implement for different languages.
 
 ## CLI usage
 
