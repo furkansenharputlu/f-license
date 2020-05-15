@@ -69,6 +69,10 @@ func (l *License) GetApp(appName string) *config.App {
 		app = config.Global.DefaultApp
 	}
 
+	if app == nil {
+		logrus.Fatal("Default app is also not found, please define a default app")
+	}
+
 	alg = app.Alg
 
 	if licenseLevelAlg := l.GetAlg(); licenseLevelAlg != "" {
