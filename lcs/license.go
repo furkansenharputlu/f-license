@@ -25,25 +25,80 @@ func fatalf(format string, err error) {
 }
 
 type License struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Type      string             `bson:"type" json:"type"`
-	Alg       string             `bson:"alg" json:"alg"`
-	Hash      string             `bson:"hash" json:"-"`
-	Token     string             `bson:"token" json:"token"`
-	Claims    jwt.MapClaims      `bson:"claims" json:"claims"`
-	Active    bool               `bson:"active" json:"active"`
+	ID        primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
+	Headers   map[string]interface{} `bson:"headers" json:"headers"`
+	Hash      string                 `bson:"hash" json:"-"`
+	Token     string                 `bson:"token" json:"token"`
+	Claims    jwt.MapClaims          `bson:"claims" json:"claims"`
+	Active    bool                   `bson:"active" json:"active"`
 	signKey   interface{}
 	verifyKey interface{}
 }
 
-func (l *License) Generate() error {
-	if l.Alg == "" {
-		l.Alg = "HS256"
+func (l *License) GetAppName() (appName string) {
+	app, ok := l.Headers["app"]
+	if ok {
+		appName = app.(string)
+		return
 	}
-	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.Alg), l.Claims)
 
-	l.LoadSignKey()
-	l.LoadVerifyKey()
+	return
+}
+
+// GetAlg returns alg defined in the license header.
+func (l *License) GetAlg() (alg string) {
+	app, ok := l.Headers["alg"]
+	if ok {
+		alg = app.(string)
+		return
+	}
+
+	return
+}
+
+// GetApp returns the app that will be used to generate a license. Firstly, it checks whether a special app defined
+// in config. If there is no app defined with the given name, it picks configured DefaultApp as a fallback. Then,
+// if an alg is defined in license level, it overrides app alg, if not uses the app's existing alg. If there is no alg
+// defined, picks HS256 as default.
+func (l *License) GetApp(appName string) *config.App {
+	var alg string
+
+	app, ok := config.Global.Apps[appName]
+	if !ok {
+		logrus.Warn("There is no valid app found, using default app")
+		app = config.Global.DefaultApp
+	}
+
+	alg = app.Alg
+
+	if licenseLevelAlg := l.GetAlg(); licenseLevelAlg != "" {
+		logrus.Warn("Overriding alg with the one defined in license header")
+		alg = licenseLevelAlg
+	}
+
+	if alg == "" {
+		logrus.Warn("No alg defined: choosing HS256")
+		alg = "HS256"
+	}
+
+	l.Headers["alg"] = alg
+
+	return app
+}
+
+func (l *License) Generate() error {
+
+	if len(l.Headers) == 0 {
+		l.Headers = make(map[string]interface{})
+	}
+
+	app := l.GetApp(l.GetAppName())
+
+	token := jwt.NewWithClaims(jwt.GetSigningMethod(app.Alg), l.Claims)
+	token.Header = l.Headers
+
+	l.LoadSignKey(app)
+	l.LoadVerifyKey(app)
 
 	signedString, err := token.SignedString(l.signKey)
 	if err != nil {
@@ -59,11 +114,12 @@ func (l *License) Generate() error {
 	return nil
 }
 
-func (l *License) LoadSignKey() {
-	if strings.HasPrefix(l.Alg, "HS") {
-		l.signKey = []byte(config.Global.HMACSecret)
+func (l *License) LoadSignKey(app *config.App) {
+
+	if strings.HasPrefix(app.Alg, "HS") {
+		l.signKey = []byte(app.HMACSecret)
 	} else {
-		signBytes, err := ioutil.ReadFile(config.Global.RSAPrivateKeyFile)
+		signBytes, err := ioutil.ReadFile(app.RSAPrivateKeyFile)
 		fatalf("Couldn't read rsa private key file: %s", err)
 
 		l.signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
@@ -71,11 +127,13 @@ func (l *License) LoadSignKey() {
 	}
 }
 
-func (l *License) LoadVerifyKey() {
-	if strings.HasPrefix(l.Alg, "HS") {
-		l.verifyKey = []byte(config.Global.HMACSecret)
+func (l *License) LoadVerifyKey(app *config.App) {
+
+	if strings.HasPrefix(app.Alg, "HS") {
+
+		l.verifyKey = []byte(app.HMACSecret)
 	} else {
-		verifyBytes, err := ioutil.ReadFile(config.Global.RSAPublicKeyFile)
+		verifyBytes, err := ioutil.ReadFile(app.RSAPublicKeyFile)
 		fatalf("Couldn't read public key: %s", err)
 
 		l.verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
@@ -89,7 +147,8 @@ func (l *License) IsLicenseValid(tokenString string) (bool, error) {
 	}
 
 	if l.verifyKey == nil {
-		l.LoadVerifyKey()
+		app := l.GetApp(l.GetAppName())
+		l.LoadVerifyKey(app)
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

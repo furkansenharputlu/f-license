@@ -1,11 +1,22 @@
 {
-  "hmac_secret": "test-secret",
-  "rsa_private_key_file": "private_key.pem",
-  "rsa_public_key_file": "public_key.pem",
   "port": 4242,
   "admin_secret": "admin123",
   "mongo_url": "mongodb://localhost:27017",
   "db_name": "f-license",
+  "apps": {
+    "test-app": {
+      "alg": "HS512",
+      "hmac_secret": "test-secret",
+      "rsa_private_key_file": "private_key.pem",
+      "rsa_public_key_file": "public_key.pem"
+    }
+  },
+  "default_app": {
+    "alg": "HS256",
+    "hmac_secret": "test-secret",
+    "rsa_private_key_file": "private_key.pem",
+    "rsa_public_key_file": "public_key.pem"
+  },
   "server_options": {
     "enable_tls": true,
     "cert_file": "cert.pem",

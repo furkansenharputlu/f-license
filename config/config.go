@@ -11,14 +11,13 @@ import (
 var Global = &Config{}
 
 type Config struct {
-	HMACSecret        string        `json:"hmac_secret"`
-	RSAPrivateKeyFile string        `json:"rsa_private_key_file"`
-	RSAPublicKeyFile  string        `json:"rsa_public_key_file"`
-	Port              int           `json:"port"`
-	AdminSecret       string        `json:"admin_secret"`
-	MongoURL          string        `json:"mongo_url"`
-	DBName            string        `json:"db_name"`
-	ServerOptions     ServerOptions `json:"server_options"`
+	Port          int             `json:"port"`
+	AdminSecret   string          `json:"admin_secret"`
+	Apps          map[string]*App `json:"apps"`
+	DefaultApp    *App            `json:"default_app"`
+	MongoURL      string          `json:"mongo_url"`
+	DBName        string          `json:"db_name"`
+	ServerOptions ServerOptions   `json:"server_options"`
 }
 
 func (c *Config) Load(filePath string) {
@@ -38,4 +37,12 @@ type ServerOptions struct {
 	CertFile  string     `json:"cert_file"`
 	KeyFile   string     `json:"key_file"`
 	TLSConfig tls.Config `json:"tls_config"`
+}
+
+type App struct {
+	Name              string `json:"name"`
+	Alg               string `json:"alg"`
+	HMACSecret        string `json:"hmac_secret"`
+	RSAPrivateKeyFile string `json:"rsa_private_key_file"`
+	RSAPublicKeyFile  string `json:"rsa_public_key_file"`
 }

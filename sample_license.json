@@ -1,6 +1,8 @@
 {
-  "type": "Trial",
-  "alg": "HS512",
+  "headers": {
+    "app": "test-app",
+    "typ": "trial"
+  },
   "claims": {
     "username": "Furkan",
     "address": "Istanbul, Turkey"

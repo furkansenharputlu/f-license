@@ -23,16 +23,23 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func sampleLicense() lcs.License {
-	return lcs.License{
+func sampleLicense(lGen ...func(l *lcs.License)) (l *lcs.License) {
+	l = &lcs.License{
 		Active: true,
-		Type:   "trial",
-		Alg:    "HS512",
+		Headers: map[string]interface{}{
+			"typ": "Trial",
+		},
 		Claims: jwt.MapClaims{
 			"name":    "Furkan",
 			"address": "Istanbul, Turkey",
 		},
 	}
+
+	if len(lGen) > 0 {
+		lGen[0](l)
+	}
+
+	return
 }
 
 func generateLicenseJSONFile(l *lcs.License) *os.File {
@@ -63,7 +70,7 @@ func TestGenerateCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 	l := sampleLicense()
 
-	generatedLicense := generateLicense(&l)
+	generatedLicense := generateLicense(l)
 
 	assert.NotEmpty(t, generatedLicense["id"])
 	assert.NotEmpty(t, generatedLicense["token"])
@@ -73,7 +80,7 @@ func TestVerifyCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 	l := sampleLicense()
 
-	generatedLicense := generateLicense(&l)
+	generatedLicense := generateLicense(l)
 
 	verifyCmd.SetArgs([]string{generatedLicense["token"]})
 	b := bytes.NewBufferString("")
@@ -89,7 +96,7 @@ func TestActivateCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 	l := sampleLicense()
 
-	generatedLicense := generateLicense(&l)
+	generatedLicense := generateLicense(l)
 
 	verifyCmd.SetArgs([]string{generatedLicense["token"]})
 	b := bytes.NewBufferString("")
@@ -122,7 +129,7 @@ func TestDeleteCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 	l := sampleLicense()
 
-	generatedLicense := generateLicense(&l)
+	generatedLicense := generateLicense(l)
 
 	deleteCmd.SetArgs([]string{generatedLicense["id"]})
 	_ = deleteCmd.Execute()
@@ -133,9 +140,11 @@ func TestDeleteCmd(t *testing.T) {
 
 func TestGetCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
-	l := sampleLicense()
+	l := sampleLicense(func(l *lcs.License) {
+		l.Headers["alg"] = "HS512"
+	})
 
-	generatedLicense := generateLicense(&l)
+	generatedLicense := generateLicense(l)
 	id := generatedLicense["id"]
 	token := generatedLicense["token"]
 
@@ -147,7 +156,7 @@ func TestGetCmd(t *testing.T) {
 		getCmd.SetArgs([]string{"--id", id})
 		_ = getCmd.Execute()
 
-		var retLicense lcs.License
+		var retLicense *lcs.License
 		out, _ := ioutil.ReadAll(b)
 		_ = json.Unmarshal(out, &retLicense)
 
@@ -162,7 +171,7 @@ func TestGetCmd(t *testing.T) {
 		getCmd.SetArgs([]string{"--token", token})
 		_ = getCmd.Execute()
 
-		var retLicense lcs.License
+		var retLicense *lcs.License
 		out, _ := ioutil.ReadAll(b)
 		_ = json.Unmarshal(out, &retLicense)
 

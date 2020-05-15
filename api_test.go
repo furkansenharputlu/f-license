@@ -34,7 +34,9 @@ func TestGetLicense(t *testing.T) {
 
 	path := "/admin/licenses"
 
-	l := sampleLicense()
+	l := sampleLicense(func(l *lcs.License) {
+		l.Headers["alg"] = "HS512"
+	})
 
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
@@ -53,8 +55,7 @@ func TestGetLicense(t *testing.T) {
 	var retLicense lcs.License
 	_ = json.Unmarshal(resBytes, &retLicense)
 
-	assert.Equal(t, l.Type, retLicense.Type)
-	assert.Equal(t, l.Alg, retLicense.Alg)
+	assert.Equal(t, l.Headers, retLicense.Headers)
 	assert.Equal(t, l.Claims, retLicense.Claims)
 	assert.Equal(t, l.Active, retLicense.Active)
 	assert.Equal(t, expectedID, retLicense.ID.Hex())
