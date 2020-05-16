@@ -8,20 +8,20 @@
       "alg": "HS512",
       "signature": {
         "hmac_secret": "test-secret",
-        "rsa_private_key_file": "private_key.pem",
-        "rsa_public_key_file": "public_key.pem"
+        "rsa_private_key_file": "sample_private_key.pem",
+        "rsa_public_key_file": "sample_public_key.pem"
       }
     }
   },
   "default_signature": {
     "hmac_secret": "test-secret",
-    "rsa_private_key_file": "private_key.pem",
-    "rsa_public_key_file": "public_key.pem"
+    "rsa_private_key_file": "sample_private_key.pem",
+    "rsa_public_key_file": "sample_public_key.pem"
   },
   "server_options": {
     "enable_tls": true,
-    "cert_file": "cert.pem",
-    "key_file": "key.pem",
+    "cert_file": "sample_public_key.pem",
+    "key_file": "sample_private_key.pem",
     "tls_config": {
       "ServerName": "localhost"
     }
