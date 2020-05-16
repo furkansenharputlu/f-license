@@ -1,6 +1,7 @@
 package lcs
 
 import (
+	"errors"
 	"f-license/config"
 	"fmt"
 	"hash/fnv"
@@ -11,12 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-var VerifyKey interface{}
-
-func ReadKeys() {
-
-}
 
 func fatalf(format string, err error) {
 	if err != nil {
@@ -31,6 +26,7 @@ type License struct {
 	Token     string                 `bson:"token" json:"token"`
 	Claims    jwt.MapClaims          `bson:"claims" json:"claims"`
 	Active    bool                   `bson:"active" json:"active"`
+	Signature config.Signature       `bson:"-" json:"-"`
 	signKey   interface{}
 	verifyKey interface{}
 }
@@ -47,47 +43,49 @@ func (l *License) GetAppName() (appName string) {
 
 // GetAlg returns alg defined in the license header.
 func (l *License) GetAlg() (alg string) {
-	app, ok := l.Headers["alg"]
+	algInt, ok := l.Headers["alg"]
 	if ok {
-		alg = app.(string)
+		alg = algInt.(string)
 		return
 	}
 
-	return
+	return alg
 }
 
-// GetApp returns the app that will be used to generate a license. Firstly, it checks whether a special app defined
-// in config. If there is no app defined with the given name, it picks configured DefaultApp as a fallback. Then,
-// if an alg is defined in license level, it overrides app alg, if not uses the app's existing alg. If there is no alg
-// defined, picks HS256 as default.
-func (l *License) GetApp(appName string) *config.App {
-	var alg string
-
+func (l *License) GetApp(appName string) (*config.App, error) {
 	app, ok := config.Global.Apps[appName]
 	if !ok {
-		logrus.Warn("There is no valid app found, using default app")
-		app = config.Global.DefaultApp
+		return nil, errors.New("app not found with given name")
 	}
 
-	if app == nil {
-		logrus.Fatal("Default app is also not found, please define a default app")
-	}
+	return app, nil
+}
 
-	alg = app.Alg
+func (l *License) ApplyApp(appName string) error {
+	var alg string
+	var signature config.Signature
 
-	if licenseLevelAlg := l.GetAlg(); licenseLevelAlg != "" {
-		logrus.Warn("Overriding alg with the one defined in license header")
-		alg = licenseLevelAlg
+	if appName == "" {
+		alg = l.GetAlg()
+		signature = config.Global.DefaultSignature
+	} else {
+		app, err := l.GetApp(appName)
+		if err != nil {
+			return err
+		}
+
+		alg = app.Alg
+		signature = app.Signature
 	}
 
 	if alg == "" {
-		logrus.Warn("No alg defined: choosing HS256")
 		alg = "HS256"
 	}
 
 	l.Headers["alg"] = alg
+	l.Signature = signature
 
-	return app
+	return nil
 }
 
 func (l *License) Generate() error {
@@ -96,13 +94,16 @@ func (l *License) Generate() error {
 		l.Headers = make(map[string]interface{})
 	}
 
-	app := l.GetApp(l.GetAppName())
+	err := l.ApplyApp(l.GetAppName())
+	if err != nil {
+		return err
+	}
 
-	token := jwt.NewWithClaims(jwt.GetSigningMethod(app.Alg), l.Claims)
+	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.GetAlg()), l.Claims)
 	token.Header = l.Headers
 
-	l.LoadSignKey(app)
-	l.LoadVerifyKey(app)
+	l.LoadSignKey()
+	l.LoadVerifyKey()
 
 	signedString, err := token.SignedString(l.signKey)
 	if err != nil {
@@ -118,12 +119,12 @@ func (l *License) Generate() error {
 	return nil
 }
 
-func (l *License) LoadSignKey(app *config.App) {
+func (l *License) LoadSignKey() {
 
-	if strings.HasPrefix(app.Alg, "HS") {
-		l.signKey = []byte(app.HMACSecret)
+	if strings.HasPrefix(l.GetAlg(), "HS") {
+		l.signKey = []byte(l.Signature.HMACSecret)
 	} else {
-		signBytes, err := ioutil.ReadFile(app.RSAPrivateKeyFile)
+		signBytes, err := ioutil.ReadFile(l.Signature.RSAPrivateKeyFile)
 		fatalf("Couldn't read rsa private key file: %s", err)
 
 		l.signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
@@ -131,13 +132,13 @@ func (l *License) LoadSignKey(app *config.App) {
 	}
 }
 
-func (l *License) LoadVerifyKey(app *config.App) {
+func (l *License) LoadVerifyKey() {
 
-	if strings.HasPrefix(app.Alg, "HS") {
+	if strings.HasPrefix(l.GetAlg(), "HS") {
 
-		l.verifyKey = []byte(app.HMACSecret)
+		l.verifyKey = []byte(l.Signature.HMACSecret)
 	} else {
-		verifyBytes, err := ioutil.ReadFile(app.RSAPublicKeyFile)
+		verifyBytes, err := ioutil.ReadFile(l.Signature.RSAPublicKeyFile)
 		fatalf("Couldn't read public key: %s", err)
 
 		l.verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
@@ -151,8 +152,11 @@ func (l *License) IsLicenseValid(tokenString string) (bool, error) {
 	}
 
 	if l.verifyKey == nil {
-		app := l.GetApp(l.GetAppName())
-		l.LoadVerifyKey(app)
+		err := l.ApplyApp(l.GetAppName())
+		if err != nil {
+			return false, nil
+		}
+		l.LoadVerifyKey()
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

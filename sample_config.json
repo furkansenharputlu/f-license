@@ -6,13 +6,14 @@
   "apps": {
     "test-app": {
       "alg": "HS512",
-      "hmac_secret": "test-secret",
-      "rsa_private_key_file": "private_key.pem",
-      "rsa_public_key_file": "public_key.pem"
+      "signature": {
+        "hmac_secret": "test-secret",
+        "rsa_private_key_file": "private_key.pem",
+        "rsa_public_key_file": "public_key.pem"
+      }
     }
   },
-  "default_app": {
-    "alg": "HS256",
+  "default_signature": {
     "hmac_secret": "test-secret",
     "rsa_private_key_file": "private_key.pem",
     "rsa_public_key_file": "public_key.pem"

@@ -62,8 +62,8 @@ func TestMain(m *testing.M) {
 	}()
 
 	app := config.Global.Apps["test-app"]
-	app.RSAPrivateKeyFile = privateKeyFile.Name()
-	app.RSAPublicKeyFile = publicKeyFile.Name()
+	app.Signature.RSAPrivateKeyFile = privateKeyFile.Name()
+	app.Signature.RSAPublicKeyFile = publicKeyFile.Name()
 	app.Alg = "RS512"
 	config.Global.Apps["test-app"] = app
 
@@ -145,11 +145,10 @@ func sampleLicense(lGen ...func(l *lcs.License)) (l *lcs.License) {
 func TestClientVerifyLocally(t *testing.T) {
 	defer Reset()
 	t.Run("HS512", func(t *testing.T) {
-		l := sampleLicense()
-		config.Global.Apps["test-app"] = &config.App{
-			HMACSecret: "test-secret",
-			Alg:        "HS512",
-		}
+		l := sampleLicense(func(l *lcs.License) {
+			l.Headers["alg"] = "HS512"
+		})
+
 		_ = l.Generate()
 
 		verified, _ := client.VerifyLocally("test-secret", l.Token)
@@ -162,13 +161,14 @@ func TestClientVerifyLocally(t *testing.T) {
 			_ = privateKeyFile.Close()
 			_ = publicKeyFile.Close()
 		}()
-		config.Global.Apps["test-app"] = &config.App{
+
+		config.Global.DefaultSignature = config.Signature{
 			RSAPrivateKeyFile: privateKeyFile.Name(),
 			RSAPublicKeyFile:  publicKeyFile.Name(),
-			Alg:               "RS256",
 		}
+
 		l := sampleLicense(func(l *lcs.License) {
-			l.Headers["app"] = "test-app"
+			l.Headers["alg"] = "RS256"
 		})
 		_ = l.Generate()
 
@@ -186,7 +186,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 
 	t.Run("HS512", func(t *testing.T) {
 		l := sampleLicense(func(l *lcs.License) {
-			l.Headers["app"] = "test-app"
+			l.Headers["alg"] = "HS512"
 		})
 
 		resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
@@ -205,13 +205,13 @@ func TestClientVerifyRemotely(t *testing.T) {
 			_ = privateKeyFile.Close()
 			_ = publicKeyFile.Close()
 		}()
-		config.Global.Apps["test-app"] = &config.App{
+		config.Global.DefaultSignature = config.Signature{
 			RSAPrivateKeyFile: privateKeyFile.Name(),
 			RSAPublicKeyFile:  publicKeyFile.Name(),
-			Alg:               "RS256",
 		}
+
 		l := sampleLicense(func(l *lcs.License) {
-			l.Headers["app"] = "test-app"
+			l.Headers["alg"] = "RS256"
 		})
 		_ = l.Generate()
 
@@ -226,30 +226,32 @@ func TestClientVerifyRemotely(t *testing.T) {
 	})
 }
 
-func TestAppFallback(t *testing.T) {
+func TestLicense_GetApp(t *testing.T) {
 	l := sampleLicense()
 
-	app := l.GetApp("test-app")
+	app, _ := l.GetApp("test-app")
 	assert.Equal(t, config.Global.Apps["test-app"], app)
 
-	defaultApp := l.GetApp("non-existing-app")
-	assert.Equal(t, config.Global.DefaultApp, defaultApp)
+	_, err := l.GetApp("non-existing-app")
+	assert.EqualError(t, err, "app not found with given name")
+
+	_, err = l.GetApp("")
+	assert.EqualError(t, err, "app not found with given name")
 }
 
-func TestAlgLevels(t *testing.T) {
+func TestLicense_ApplyApp(t *testing.T) {
 
 	l := sampleLicense(func(l *lcs.License) {
+		l.Headers["alg"] = "HS512"
+	})
+
+	t.Run("without applying", func(t *testing.T) {
+		assert.Equal(t, "HS512", l.GetAlg())
+	})
+
+	t.Run("with applying", func(t *testing.T) {
 		l.Headers["app"] = "test-app"
-	})
-
-	_ = l.Generate()
-
-	t.Run("App level", func(t *testing.T) {
-		assert.Equal(t, config.Global.Apps["test-app"].Alg, l.GetAlg())
-	})
-
-	t.Run("License level", func(t *testing.T) {
-		l.Headers["alg"] = "RS512"
+		_ = l.ApplyApp(l.GetAppName())
 
 		assert.Equal(t, "RS512", l.GetAlg())
 		assert.Equal(t, config.Global.Apps["test-app"].Alg, l.GetAlg())

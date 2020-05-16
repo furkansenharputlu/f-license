@@ -23,18 +23,18 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 	err := l.Generate()
 	if err != nil {
 		logrus.WithError(err).Error("License couldn't be generated")
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	err = storage.LicenseHandler.AddIfNotExisting(&l)
 	if err != nil {
 		logrus.WithError(err).Error("License couldn't be stored")
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	ReturnResponse(w, 200, map[string]interface{}{
+	ReturnResponse(w, http.StatusOK, map[string]interface{}{
 		"id":    l.ID.Hex(),
 		"token": l.Token,
 	})
@@ -46,7 +46,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 	var l lcs.License
 	err := storage.LicenseHandler.GetByID(id, &l)
 	if err != nil {
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -57,7 +57,7 @@ func GetAllLicenses(w http.ResponseWriter, r *http.Request) {
 	var licenses []*lcs.License
 	err := storage.LicenseHandler.GetAll(&licenses)
 	if err != nil {
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -72,7 +72,7 @@ func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 	err := storage.LicenseHandler.Activate(id, inactivate)
 	if err != nil {
 		logrus.WithError(err).Error("Error while activeness change")
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -96,7 +96,7 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	err := storage.LicenseHandler.GetByToken(token, &l)
 	if err != nil {
 		logrus.WithError(err).Error("Error while getting license")
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -121,7 +121,7 @@ func DeleteLicense(w http.ResponseWriter, r *http.Request) {
 	err := storage.LicenseHandler.DeleteByID(id)
 	if err != nil {
 		logrus.WithError(err).Error("Error while deleting license")
-		ReturnError(w, err.Error())
+		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -142,13 +142,14 @@ func ReturnResponse(w http.ResponseWriter, statusCode int, resp interface{}) {
 	_, _ = fmt.Fprintf(w, string(bytes))
 }
 
-func ReturnError(w http.ResponseWriter, errMsg string) {
+func ReturnError(w http.ResponseWriter, statusCode int, errMsg string) {
 	resp := map[string]interface{}{
 		"error": errMsg,
 	}
 	bytes, _ := json.Marshal(resp)
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 	_, _ = fmt.Fprintf(w, string(bytes))
 }
 

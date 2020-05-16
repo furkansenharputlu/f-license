@@ -1,7 +1,7 @@
 {
   "headers": {
-    "app": "test-app",
-    "typ": "trial"
+    "typ": "trial",
+    "alg": "HS512"
   },
   "claims": {
     "username": "Furkan",
