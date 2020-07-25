@@ -2,9 +2,10 @@ package main
 
 import (
 	"crypto/tls"
-	"f-license/config"
-	"f-license/storage"
 	"fmt"
+
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/storage"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"

@@ -3,11 +3,12 @@ package storage
 import (
 	"context"
 	"errors"
-	"f-license/config"
-	"f-license/lcs"
 	"fmt"
 	"hash/fnv"
 	"time"
+
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/lcs"
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"

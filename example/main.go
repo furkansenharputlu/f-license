@@ -1,9 +1,10 @@
 package main
 
 import (
-	"f-license/client"
 	"fmt"
 	"time"
+
+	"github.com/furkansenharputlu/f-license/client"
 )
 
 // make the license configurable

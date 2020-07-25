@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"f-license/config"
-	"f-license/lcs"
-	"f-license/storage"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/lcs"
+	"github.com/furkansenharputlu/f-license/storage"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"

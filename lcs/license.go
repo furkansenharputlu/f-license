@@ -2,11 +2,12 @@ package lcs
 
 import (
 	"errors"
-	"f-license/config"
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
 	"strings"
+
+	"github.com/furkansenharputlu/f-license/config"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/sirupsen/logrus"

@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"f-license/config"
-	"f-license/lcs"
-	"f-license/storage"
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/lcs"
+	"github.com/furkansenharputlu/f-license/storage"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

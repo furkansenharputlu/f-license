@@ -7,10 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"f-license/client"
-	"f-license/config"
-	"f-license/lcs"
-	"f-license/storage"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -22,6 +18,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/furkansenharputlu/f-license/client"
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/lcs"
+	"github.com/furkansenharputlu/f-license/storage"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"

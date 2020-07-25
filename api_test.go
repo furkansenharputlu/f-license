@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"f-license/lcs"
-	"f-license/storage"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/furkansenharputlu/f-license/lcs"
+	"github.com/furkansenharputlu/f-license/storage"
 
 	"github.com/stretchr/testify/assert"
 )
