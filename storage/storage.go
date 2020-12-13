@@ -12,13 +12,18 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const (
+	NoError                = 0
+	UnexpectedFailureError = 1
+	ItemDuplicationError   = 2
+)
+
 type Handler interface {
-	AddIfNotExisting(l *lcs.License) error
+	AddIfNotExisting(l *lcs.License) (error, int)
 	Activate(id string, inactivate bool) error
 	GetByID(id string, l *lcs.License) error
 	GetAll(licenses *[]*lcs.License) error
@@ -35,6 +40,8 @@ func Connect() {
 	fatalf("Problem while connecting to Mongo: %s", err)
 
 	LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBName).Collection("licenses")}
+	GlobalKeyHandler = mongoKeyHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
+	//GlobalRSAHandler = mongoRSAHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
 }
 
 func fatalf(format string, err error) {
@@ -47,40 +54,35 @@ type licenseMongoHandler struct {
 	col *mongo.Collection
 }
 
-func (h licenseMongoHandler) AddIfNotExisting(l *lcs.License) error {
+func (h licenseMongoHandler) AddIfNotExisting(l *lcs.License) (error, int) {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
-	filter := bson.M{"hash": l.Hash}
+	filter := bson.M{"id": l.ID}
 	res := h.col.FindOne(ctx, filter)
 	err := res.Err()
 	if err != nil {
 		if err != mongo.ErrNoDocuments {
-			return err
+			return err, UnexpectedFailureError
 		}
 	} else {
 		var existingLicense lcs.License
 		_ = res.Decode(&existingLicense)
-		return errors.New(fmt.Sprintf("there is already such license with ID: %s", existingLicense.ID.Hex()))
+		return errors.New(fmt.Sprintf("there is already such license with ID: %s", existingLicense.ID)), ItemDuplicationError
 	}
 
-	l.ID = primitive.NewObjectID()
+	l.ID = lcs.HexSHA256([]byte(l.Token))
 
 	update := bson.M{"$set": l}
 	_, err = h.col.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	if err != nil {
-		return errors.New(fmt.Sprintf("error while inserting license: %s", err))
+		return errors.New(fmt.Sprintf("error while inserting license: %s", err)), 0
 	}
 
-	return nil
+	return nil, NoError
 }
 
 func (h licenseMongoHandler) Activate(id string, inactivate bool) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
-	filter := bson.M{"_id": bson.M{"$eq": licenseID}}
+	filter := bson.M{"id": bson.M{"$eq": id}}
 	update := bson.M{"$set": bson.M{"active": !inactivate}}
 	res, err := h.col.UpdateOne(context.Background(), filter, update)
 	if res.MatchedCount == 0 {
@@ -109,13 +111,8 @@ func (h licenseMongoHandler) Activate(id string, inactivate bool) error {
 }
 
 func (h licenseMongoHandler) DeleteByID(id string) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"_id": licenseID}
+	filter := bson.M{"id": id}
 	res, err := h.col.DeleteOne(ctx, filter)
 	if res.DeletedCount == 0 {
 		return errors.New(fmt.Sprintf("there is no license with ID: %s", id))
@@ -131,14 +128,9 @@ func (h licenseMongoHandler) DeleteByID(id string) error {
 }
 
 func (h licenseMongoHandler) GetByID(id string, l *lcs.License) error {
-	licenseID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ID format error: %s", err))
-	}
-
-	filter := bson.M{"_id": licenseID}
+	filter := bson.M{"id": id}
 	res := h.col.FindOne(context.Background(), filter)
-	err = res.Err()
+	err := res.Err()
 	if err != nil {
 		return err
 	}

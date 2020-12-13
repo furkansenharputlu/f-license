@@ -1,22 +1,30 @@
 {
   "port": 4242,
-  "admin_secret": "admin123",
+  "control_api_secret": "admin123",
   "mongo_url": "mongodb://localhost:27017",
   "db_name": "f-license",
   "apps": {
     "test-app": {
       "alg": "HS512",
       "signature": {
-        "hmac_secret": "test-secret",
+        "hmac_secret": "test-hmac-secret",
         "rsa_private_key_file": "sample_private_key.pem",
         "rsa_public_key_file": "sample_public_key.pem"
       }
     }
   },
-  "default_signature": {
-    "hmac_secret": "test-secret",
-    "rsa_private_key_file": "sample_private_key.pem",
-    "rsa_public_key_file": "sample_public_key.pem"
+  "default_keys": {
+    "hmac_secret": {
+      "raw": "test-default-hmac-secret"
+    },
+    "rsa_private_key":{
+      "id": "",
+      "file_path": "sample_private_key.pem"
+    },
+    "rsa_public_key": {
+      "id": "",
+      "file_path": "sample_public_key.pem"
+    }
   },
   "server_options": {
     "enable_tls": true,

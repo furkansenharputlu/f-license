@@ -143,6 +143,7 @@ func TestGetCmd(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 	l := sampleLicense(func(l *lcs.License) {
 		l.Headers["alg"] = "HS512"
+		l.Keys.HMACSecret.Raw = "test-secret"
 	})
 
 	generatedLicense := generateLicense(l)

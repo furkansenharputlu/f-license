@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"strings"
 
 	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/storage"
@@ -22,11 +23,27 @@ func intro() {
 	logrus.Info("https://f-license.com")
 }
 
+func setAppKeyIDs() {
+	km := KeyManager{}
+	var err error
+	for _, app := range config.Global.Apps {
+		if (strings.HasPrefix(app.Alg, "HS") && app.Key.Type != "hmac") || (strings.HasPrefix(app.Alg, "RS") && app.Key.Type != "rsa") {
+			logrus.Fatalf("alg and key type mismatch")
+		}
+		app.Key.ID, _, err = km.GetOrAddKey(&app.Key, true)
+		if err != nil {
+			logrus.WithError(err).Fatalf("Error while calculating key ID of app: %s", app.Name)
+		}
+	}
+}
+
 func main() {
 
 	intro()
 
 	config.Global.Load("config.json")
+	setAppKeyIDs()
+
 	storage.Connect()
 
 	router := GenerateRouter()
@@ -51,14 +68,24 @@ func main() {
 func GenerateRouter() *mux.Router {
 	r := mux.NewRouter()
 	// Endpoints called by product owners
-	adminRouter := r.PathPrefix("/admin").Subrouter()
+	adminRouter := r.PathPrefix("/f").Subrouter()
 	adminRouter.Use(AuthenticationMiddleware)
+
+	adminRouter.HandleFunc("/apps", GetAllApps).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/apps/{name}", GetApp).Methods(http.MethodGet)
+
 	adminRouter.HandleFunc("/licenses", GetAllLicenses).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/licenses", GenerateLicense).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/licenses/{id}", GetLicense).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/licenses/{id}/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/licenses/{id}/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/licenses/{id}/delete", DeleteLicense).Methods(http.MethodDelete)
+
+	adminRouter.HandleFunc("/keys", GetAllKeys).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/keys", UploadKey).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/keys/{id}", GetKey).Methods(http.MethodGet)
+
+	adminRouter.HandleFunc("/keys/{id}/delete", DeleteKey).Methods(http.MethodDelete)
 
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)

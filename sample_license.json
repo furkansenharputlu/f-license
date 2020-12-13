@@ -1,11 +1,12 @@
 {
   "headers": {
     "typ": "trial",
-    "alg": "HS512"
+    "alg": "RS512"
   },
   "claims": {
     "username": "Furkan",
     "address": "Istanbul, Turkey"
   },
   "active": true
+
 }
