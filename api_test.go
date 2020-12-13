@@ -16,9 +16,9 @@ import (
 func TestGenerateLicense(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 
-	path := "/admin/licenses"
+	path := "/f/licenses"
 
-	l := sampleLicense()
+	l := lcs.SampleLicense()
 	//l.Alg="RS256"
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
@@ -33,9 +33,9 @@ func TestGenerateLicense(t *testing.T) {
 func TestGetLicense(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 
-	path := "/admin/licenses"
+	path := "/f/licenses"
 
-	l := sampleLicense(func(l *lcs.License) {
+	l := lcs.SampleLicense(func(l *lcs.License) {
 		l.Headers["alg"] = "HS512"
 	})
 
@@ -48,7 +48,7 @@ func TestGetLicense(t *testing.T) {
 	expectedID := resMap["id"]
 	expectedToken := resMap["token"]
 
-	getPath := "/admin/licenses/" + expectedID
+	getPath := "/f/licenses/" + expectedID
 
 	resp = tr.Run(t, &TestCase{Method: http.MethodGet, Path: getPath})
 	resBytes, _ = ioutil.ReadAll(resp.Body)
@@ -59,16 +59,16 @@ func TestGetLicense(t *testing.T) {
 	assert.Equal(t, l.Headers, retLicense.Headers)
 	assert.Equal(t, l.Claims, retLicense.Claims)
 	assert.Equal(t, l.Active, retLicense.Active)
-	assert.Equal(t, expectedID, retLicense.ID.Hex())
+	assert.Equal(t, expectedID, retLicense.ID)
 	assert.Equal(t, expectedToken, retLicense.Token)
 }
 
 func TestVerifyLicense(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 
-	path := "/admin/licenses"
+	path := "/f/licenses"
 
-	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: sampleLicense(), BodyMatch: `"id":.*"token":"ey.*"`})
+	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: lcs.SampleLicense(), BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
 
 	var resMap map[string]string
@@ -85,9 +85,9 @@ func TestVerifyLicense(t *testing.T) {
 func TestDeleteLicense(t *testing.T) {
 	defer storage.LicenseHandler.DropDatabase()
 
-	path := "/admin/licenses"
+	path := "/f/licenses"
 
-	l := sampleLicense()
+	l := lcs.SampleLicense()
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
 
@@ -99,7 +99,7 @@ func TestDeleteLicense(t *testing.T) {
 	tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l,
 		BodyMatch: "there is already such license with ID: " + expectedID})
 
-	deletePath := fmt.Sprintf("/admin/licenses/%s/delete", expectedID)
+	deletePath := fmt.Sprintf("/f/licenses/%s/delete", expectedID)
 
 	tr.Run(t, &TestCase{Method: http.MethodDelete, Path: deletePath, BodyMatch: "License successfully deleted"})
 
@@ -111,7 +111,7 @@ func TestChangeLicenseActiveness(t *testing.T) {
 
 	path := "/admin/licenses"
 
-	l := sampleLicense()
+	l := lcs.SampleLicense()
 	resp := tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l, BodyMatch: `"id":.*"token":"ey.*"`})
 	resBytes, _ := ioutil.ReadAll(resp.Body)
 
@@ -128,4 +128,12 @@ func TestChangeLicenseActiveness(t *testing.T) {
 
 	tr.Run(t, &TestCase{Method: http.MethodPut, Path: activatePath, BodyMatch: `{"message":"Activated"}`})
 	tr.Run(t, &TestCase{Method: http.MethodPut, Path: activatePath, BodyMatch: `{"error":"already active"}`})
+}
+
+func TestLoadVerifyKey(t *testing.T) {
+
+}
+
+func TestLoadSignKey(t *testing.T) {
+
 }

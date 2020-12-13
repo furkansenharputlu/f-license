@@ -1,36 +1,68 @@
 package lcs
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash/fnv"
-	"io/ioutil"
-	"strings"
+	"reflect"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/furkansenharputlu/f-license/config"
-
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func fatalf(format string, err error) {
-	if err != nil {
-		logrus.Fatalf(format, err)
-	}
+type License struct {
+	ID      string                 `bson:"id" json:"id"`
+	Active  bool                   `bson:"active" json:"active"`
+	Headers map[string]interface{} `bson:"headers" json:"headers"`
+	Claims  jwt.MapClaims          `bson:"claims" json:"claims"`
+	Token   string                 `bson:"token" json:"token"`
+	Key     config.Key             `bson:"key" json:"key"`
+
+	SignKey   interface{} `bson:"-" json:"-"`
+	VerifyKey interface{} `bson:"-" json:"-"`
 }
 
-type License struct {
-	ID        primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
-	Headers   map[string]interface{} `bson:"headers" json:"headers"`
-	Hash      string                 `bson:"hash" json:"-"`
-	Token     string                 `bson:"token" json:"token"`
-	Claims    jwt.MapClaims          `bson:"claims" json:"claims"`
-	Active    bool                   `bson:"active" json:"active"`
-	Signature config.Signature       `bson:"-" json:"-"`
-	signKey   interface{}
-	verifyKey interface{}
+/*func (l *License) SigningMethod() string{
+
 }
+
+func (l *License) AlgKeyTypeMatches() bool {
+	if stringsl.GetAlg()
+
+	return
+}*/
+
+/*func (l *License) MarshalJSON() ([]byte, error) {
+
+	res := map[string]interface{}{
+		"id":      l.ID,
+		"headers": l.Headers,
+		"token":   l.Token,
+		"claims":  l.Claims,
+		"active":  l.Active,
+	}
+
+	return json.Marshal(&struct {
+		ID           string                 `json:"id"`
+		Headers      map[string]interface{} `json:"headers"`
+		Token        string                 `json:"token"`
+		Claims       jwt.MapClaims          `json:"claims"`
+		Active       bool                   `json:"active"`
+		HMACSecretID string                 `json:"hmac_secret_id,omitempty"`
+		RSAID        string                 `json:"rsa_id,omitempty"`
+	}{
+		ID:      l.ID,
+		Headers: l.Headers,
+		Token:   l.Token,
+		Claims:  l.Claims,
+		Active:  l.Active,
+	})
+
+
+
+	return json.Marshal(res)
+}*/
 
 func (l *License) GetAppName() (appName string) {
 	app, ok := l.Headers["app"]
@@ -40,6 +72,10 @@ func (l *License) GetAppName() (appName string) {
 	}
 
 	return
+}
+
+func (l *License) SetAppName(appName string) {
+	l.Headers["app"] = appName
 }
 
 // GetAlg returns alg defined in the license header.
@@ -62,13 +98,15 @@ func (l *License) GetApp(appName string) (*config.App, error) {
 	return app, nil
 }
 
-func (l *License) ApplyApp(appName string) error {
+func (l *License) ApplyApp() error {
 	var alg string
-	var signature config.Signature
+	var key config.Key
+	emptyKeys := config.Key{}
 
+	appName := l.GetAppName()
 	if appName == "" {
 		alg = l.GetAlg()
-		signature = config.Global.DefaultSignature
+		key = l.Key
 	} else {
 		app, err := l.GetApp(appName)
 		if err != nil {
@@ -76,15 +114,24 @@ func (l *License) ApplyApp(appName string) error {
 		}
 
 		alg = app.Alg
-		signature = app.Signature
+		key = app.Key
 	}
 
 	if alg == "" {
 		alg = "HS256"
 	}
 
+	if l.Headers == nil {
+		l.Headers = make(map[string]interface{})
+	}
+
 	l.Headers["alg"] = alg
-	l.Signature = signature
+
+	if reflect.DeepEqual(key, emptyKeys) {
+		key = config.Global.DefaultKey
+	}
+
+	l.Key = key
 
 	return nil
 }
@@ -95,56 +142,49 @@ func (l *License) Generate() error {
 		l.Headers = make(map[string]interface{})
 	}
 
-	err := l.ApplyApp(l.GetAppName())
-	if err != nil {
-		return err
-	}
-
 	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.GetAlg()), l.Claims)
 	token.Header = l.Headers
 
-	l.LoadSignKey()
-	l.LoadVerifyKey()
-
-	signedString, err := token.SignedString(l.signKey)
+	signedString, err := token.SignedString(l.SignKey)
 	if err != nil {
 		return err
 	}
 
 	l.Token = signedString
 
-	h := fnv.New64a()
-	h.Write([]byte(signedString))
-	l.Hash = fmt.Sprintf("%v", h.Sum64())
+	l.ID = HexSHA256([]byte(signedString))
 
 	return nil
 }
 
-func (l *License) LoadSignKey() {
-
-	if strings.HasPrefix(l.GetAlg(), "HS") {
-		l.signKey = []byte(l.Signature.HMACSecret)
-	} else {
-		signBytes, err := ioutil.ReadFile(l.Signature.RSAPrivateKeyFile)
-		fatalf("Couldn't read rsa private key file: %s", err)
-
-		l.signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
-		fatalf("Couldn't parse private key: %s", err)
-	}
+func HexSHA256(key []byte) string {
+	certSHA := sha256.Sum256(key)
+	return hex.EncodeToString(certSHA[:])
 }
 
-func (l *License) LoadVerifyKey() {
+func (l *License) EncryptKeys() error {
 
-	if strings.HasPrefix(l.GetAlg(), "HS") {
+	/*switch l.signKey.(type) {
+	case *rsa.PrivateKey:
+		ciphertext, err := Encrypt([]byte(config.Global.AdminSecret), l.signKeyRaw)
+		if err != nil {
+			return err
+		}
 
-		l.verifyKey = []byte(l.Signature.HMACSecret)
-	} else {
-		verifyBytes, err := ioutil.ReadFile(l.Signature.RSAPublicKeyFile)
-		fatalf("Couldn't read public key: %s", err)
-
-		l.verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
-		fatalf("Couldn't parse public key: %s", err)
+		l.Keys. = string(ciphertext)
 	}
+	if l.signKey == l.Keys.HMACSecret {
+		ciphertext, err := Encrypt([]byte(config.Global.AdminSecret), []byte(l.Keys.HMACSecret))
+		if err != nil {
+			return err
+		}
+
+		l.Keys.HMACSecret = string(ciphertext)
+	} else {
+
+	}*/
+	return nil
+
 }
 
 func (l *License) IsLicenseValid(tokenString string) (bool, error) {
@@ -152,22 +192,14 @@ func (l *License) IsLicenseValid(tokenString string) (bool, error) {
 		return false, nil
 	}
 
-	if l.verifyKey == nil {
-		err := l.ApplyApp(l.GetAppName())
-		if err != nil {
-			return false, nil
-		}
-		l.LoadVerifyKey()
-	}
-
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		switch token.Method.(type) {
 		case *jwt.SigningMethodHMAC:
-			return l.verifyKey, nil
+			return l.VerifyKey, nil
 		case *jwt.SigningMethodRSA:
 
-			return l.verifyKey, nil
+			return l.VerifyKey, nil
 		default:
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}

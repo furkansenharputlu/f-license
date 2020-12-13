@@ -12,18 +12,13 @@ var Global = &Config{}
 
 type Config struct {
 	Port             int             `json:"port"`
-	AdminSecret      string          `json:"admin_secret"`
+	ControlAPISecret string          `json:"control_api_secret"`
+	Secret           string          `json:"secret"`
 	Apps             map[string]*App `json:"apps"`
-	DefaultSignature Signature       `json:"default_signature"`
+	DefaultKey       Key             `json:"default_key"`
 	MongoURL         string          `json:"mongo_url"`
 	DBName           string          `json:"db_name"`
 	ServerOptions    ServerOptions   `json:"server_options"`
-}
-
-type Signature struct {
-	HMACSecret        string `json:"hmac_secret"`
-	RSAPrivateKeyFile string `json:"rsa_private_key_file"`
-	RSAPublicKeyFile  string `json:"rsa_public_key_file"`
 }
 
 func (c *Config) Load(filePath string) {
@@ -38,6 +33,25 @@ func (c *Config) Load(filePath string) {
 	}
 }
 
+type Key struct {
+	ID   string     `bson:"id" json:"id"`
+	Name string     `bson:"name" json:"name"`
+	Type string     `bson:"type" json:"type"`
+	RSA  *RSA       `bson:"rsa,omitempty" json:"rsa,omitempty"`
+	HMAC *KeyDetail `bson:"hmac,omitempty" json:"hmac,omitempty"`
+}
+
+type RSA struct {
+	Private *KeyDetail `bson:"private,omitempty" json:"private,omitempty"`
+	Public  *KeyDetail `bson:"public,omitempty" json:"public,omitempty"`
+}
+
+type KeyDetail struct {
+	FilePath  string `bson:"-" json:"file_path,omitempty"`
+	Raw       string `bson:"-" json:"raw"`
+	Encrypted []byte `bson:"encrypted,omitempty" json:"-"`
+}
+
 type ServerOptions struct {
 	EnableTLS bool       `json:"enable_tls"`
 	CertFile  string     `json:"cert_file"`
@@ -46,7 +60,7 @@ type ServerOptions struct {
 }
 
 type App struct {
-	Name      string    `json:"name"`
-	Alg       string    `json:"alg"`
-	Signature Signature `json:"signature"`
+	Name string `json:"name"`
+	Alg  string `json:"alg"`
+	Key  Key    `json:"key"`
 }
