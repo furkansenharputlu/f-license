@@ -39,7 +39,7 @@ func Connect() {
 
 	if DatabaseConfig.Auth {
 		credential:=options.Credential{
-			Username: DatabaseConfig.Username,
+			Username: DatabaseConfig.Username   ,
 			Password: DatabaseConfig.Password,
 		}
 		opt.SetAuth(credential)
