@@ -9,14 +9,12 @@ import (
 	"time"
 
 	"github.com/furkansenharputlu/f-license/config"
-	"github.com/furkansenharputlu/f-license/storage/storage"
-
+	"github.com/furkansenharputlu/f-license/storage.go"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/sirupsen/logrus"
-
 )
 
 type licenseMongoHandler struct {
@@ -169,14 +167,17 @@ func (h licenseMongoHandler) GetAll(licenses *[]*lcs.License) error {
 
 func (h licenseMongoHandler) GetByToken(token string, l *lcs.License) error {
 	h64 := fnv.New64a()
-	h64.Write([]byte(token))
+	_, err := h64.Write([]byte(token))
+	if err != nil {
+		return fmt.Errorf("error while h64: %s", err)
+	}
 	hash := h64.Sum64()
 	hashStr := fmt.Sprintf("%v", hash)
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	filter := bson.M{"hash": hashStr}
 	res := h.col.FindOne(ctx, filter)
-	err := res.Err()
+	err = res.Err()
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return fmt.Errorf("license not found")

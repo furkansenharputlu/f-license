@@ -18,10 +18,10 @@ import (
 
 var store []* lcs.License
 
-var path = "test.json"
+var file = config.Global.DatabaseOptions.Default.Path+config.Global.DatabaseOptions.Default.FileName
 
 func Connect(){
-	Read(config.Global.DatabaseOptions.Default.Path+config.Global.DatabaseOptions.Default.FileName)
+	Read(file)
 }
 
 func AddIfNotExisting(l* lcs.License)  error{
@@ -30,7 +30,7 @@ func AddIfNotExisting(l* lcs.License)  error{
 			return errors.New(fmt.Sprintf("there is already such license with ID: %s", tmp.ID/*.Hex()*/))		}
 	}
 	store = append(store, l)
-	Write(path)
+	Write(file)
 	return nil
 }
 
@@ -47,14 +47,14 @@ func Activate(id string, inactivate bool) error {
 					return errors.New("already inactive")
 				} else {
 					tmp.Active = false
-					Write(path)
+					Write(file)
 					logrus.Infof(`License is successfully inactivated: %s`, id)
 					return nil
 				}
 			} else {
 				if tmp.Active == false {
 					tmp.Active = true
-					Write(path)
+					Write(file)
 					logrus.Infof(`License is successfully activated: %s`, id)
 					return nil
 				} else {
@@ -75,7 +75,7 @@ func DeleteByID(id string) error {
 	for i, tmp := range store{
 		if tmp.ID == licenseID{
 			store = append(store[:i], store[i+1:]...)
-			Write(path)
+			Write(file)
 			logrus.Info("License successfully deleted")
 			return nil
 		}
@@ -128,7 +128,7 @@ func DropDatabase() error {
 		return errors.New("The database could not dropped")
 	}
 	store=nil
-	Write(path)
+	Write(file)
 
 	return nil
 }
@@ -136,11 +136,11 @@ func DropDatabase() error {
 func Write(path string) error{
 	bytes, err := json.Marshal(store)
 	if err !=nil{
-		logrus.WithError(err).Error("Couldn't marshal configuration")
+		return errors.New("Couldn't marshal configuration")
 	}
 	err = ioutil.WriteFile(path, bytes, 0644)
 	if err != nil {
-		logrus.WithError(err).Error("Couldn't write to data file")
+		return errors.New("Couldn't write to data file")
 	}
 	return nil
 }
@@ -148,11 +148,11 @@ func Write(path string) error{
 func Read(path string) error{
 	configuration, err := ioutil.ReadFile(path)
 	if err != nil {
-		logrus.WithError(err).Error("Couldn't read data file")
+		return errors.New("Couldn't read to data file")
 	}
 	err = json.Unmarshal(configuration, &store)
 	if err != nil {
-		logrus.WithError(err).Error("Couldn't unmarshal configuration")
+		return errors.New("Couldn't unmarshal configuration")
 	}
 	return nil
 }
