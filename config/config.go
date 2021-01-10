@@ -15,8 +15,6 @@ type Config struct {
 	AdminSecret      string          	`json:"admin_secret"`
 	Apps             map[string]*App 	`json:"apps"`
 	DefaultSignature Signature       	`json:"default_signature"`
-	MongoURL         string          	`json:"mongo_url"`
-	DBName           string          	`json:"db_name"`
 	ServerOptions    ServerOptions   	`json:"server_options"`
 	Database		 DBMS 				`json:"dbms"`
 }
