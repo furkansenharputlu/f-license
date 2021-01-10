@@ -16,7 +16,8 @@ type Config struct {
 	Apps             map[string]*App 	`json:"apps"`
 	DefaultSignature Signature       	`json:"default_signature"`
 	ServerOptions    ServerOptions   	`json:"server_options"`
-	Database		 DBMS 				`json:"dbms"`
+	Database		 string 			`json:"database"`
+	DatabaseOptions  map[string]*App 	`json:"database_options"`
 }
 
 type Signature struct {
@@ -51,7 +52,17 @@ type App struct {
 }
 
 
-type DBMS struct {
+type DatabaseOptions struct {
+	Default	map[string]*App 	`json:"apps"`
+	Mongo	map[string]*App  	`json:"apps"`
+}
+
+type Default struct {
+	Path  	  	string			`json:"path"`
+	FileName    string          `json:"file_name"`
+}
+
+type Mongo struct {
 	Type   	  	string          `json:"type"`
 	Host      	string          `json:"host"`
 	Port  	  	int				`json:"port"`

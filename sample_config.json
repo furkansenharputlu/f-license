@@ -1,17 +1,21 @@
 {
   "port": 4242,
   "admin_secret": "admin123",
-  "mongo_url": "mongodb://localhost:27017",
-  "db_name": "f-license",
-  "dbms": {
-    "type": "mongodb",
-    "host": "localhost",
-    "port": 27017,
-    "dbName": "f-license",
-    "sslmode": "disable",
-    "auth": false,
-    "username": "",
-    "password": ""
+  "database": "default",
+  "database_options": {
+    "default":{
+      "path": "./storage/data/",
+      "file_name": "data.json"
+    },
+    "mongo": {
+        "host": "localhost",
+        "port": 27017,
+        "dbName": "f-license",
+        "sslmode": "disable",
+        "auth": false,
+        "username": "",
+        "password": ""
+    }
   },
   "apps": {
     "test-app": {
