@@ -26,7 +26,7 @@ func main() {
 
 	intro()
 
-	config.Global.Load("config.json")
+	config.Global.Load("sample_config.json")
 	storage.Connect()
 
 	router := GenerateRouter()

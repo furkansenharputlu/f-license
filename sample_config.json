@@ -3,6 +3,16 @@
   "admin_secret": "admin123",
   "mongo_url": "mongodb://localhost:27017",
   "db_name": "f-license",
+  "dbms": {
+    "type": "mongodb",
+    "host": "localhost",
+    "port": 27017,
+    "dbName": "f-license",
+    "sslmode": "disable",
+    "auth": false,
+    "username": "",
+    "password": ""
+  },
   "apps": {
     "test-app": {
       "alg": "HS512",
@@ -19,7 +29,7 @@
     "rsa_public_key_file": "sample_public_key.pem"
   },
   "server_options": {
-    "enable_tls": true,
+    "enable_tls": false,
     "cert_file": "sample_public_key.pem",
     "key_file": "sample_private_key.pem",
     "tls_config": {

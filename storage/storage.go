@@ -31,10 +31,23 @@ var LicenseHandler Handler
 
 func Connect() {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.MongoURL))
-	fatalf("Problem while connecting to Mongo: %s", err)
 
-	LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBName).Collection("licenses")}
+	DatabaseConfig:= config.Global.Database
+	URI := fmt.Sprintf("%s://%s:%d", DatabaseConfig.Type,DatabaseConfig.Host,DatabaseConfig.Port)
+
+	opt:=options.Client().ApplyURI(URI)
+
+	if DatabaseConfig.Auth {
+		credential:=options.Credential{
+			Username: DatabaseConfig.Username,
+			Password: DatabaseConfig.Password,
+		}
+		opt.SetAuth(credential)
+	}
+
+	MongoClient, err := mongo.Connect(ctx, opt)
+	fatalf("Problem while connecting to Mongo: %s", err)
+	LicenseHandler = licenseMongoHandler{MongoClient.Database(DatabaseConfig.DBName).Collection("licenses")}
 }
 
 func fatalf(format string, err error) {

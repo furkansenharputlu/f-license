@@ -11,13 +11,14 @@ import (
 var Global = &Config{}
 
 type Config struct {
-	Port             int             `json:"port"`
-	AdminSecret      string          `json:"admin_secret"`
-	Apps             map[string]*App `json:"apps"`
-	DefaultSignature Signature       `json:"default_signature"`
-	MongoURL         string          `json:"mongo_url"`
-	DBName           string          `json:"db_name"`
-	ServerOptions    ServerOptions   `json:"server_options"`
+	Port             int             	`json:"port"`
+	AdminSecret      string          	`json:"admin_secret"`
+	Apps             map[string]*App 	`json:"apps"`
+	DefaultSignature Signature       	`json:"default_signature"`
+	MongoURL         string          	`json:"mongo_url"`
+	DBName           string          	`json:"db_name"`
+	ServerOptions    ServerOptions   	`json:"server_options"`
+	Database		 DBMS 				`json:"dbms"`
 }
 
 type Signature struct {
@@ -49,4 +50,16 @@ type App struct {
 	Name      string    `json:"name"`
 	Alg       string    `json:"alg"`
 	Signature Signature `json:"signature"`
+}
+
+
+type DBMS struct {
+	Type   	  	string          `json:"type"`
+	Host      	string          `json:"host"`
+	Port  	  	int				`json:"port"`
+	Auth  		bool			`json:"auth"`
+	Username    string          `json:"username"`
+	Password    string          `json:"password"`
+	DBName      string          `json:"dbName"`
+	SSLMode 	string			`json:"sslmode"`
 }
