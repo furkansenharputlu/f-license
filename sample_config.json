@@ -1,8 +1,16 @@
 {
   "port": 4242,
   "control_api_secret": "admin123",
-  "mongo_url": "mongodb://localhost:27017",
-  "db_name": "f-license",
+  "admin_secret": "admin123",
+  "db_options": {
+    "file":{
+      "dir": "./storage"
+    },
+    "mongo": {
+      "url": "mongodb://localhost:27017",
+      "name": "f-license"
+    }
+  },
   "apps": {
     "test-app": {
       "alg": "HS512",

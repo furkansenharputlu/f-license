@@ -79,13 +79,13 @@ func GenerateRouter() *mux.Router {
 	adminRouter.HandleFunc("/licenses/{id}", GetLicense).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/licenses/{id}/activate", ChangeLicenseActiveness).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/licenses/{id}/inactivate", ChangeLicenseActiveness).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/licenses/{id}/delete", DeleteLicense).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/licenses/{id}", DeleteLicense).Methods(http.MethodDelete)
 
 	adminRouter.HandleFunc("/keys", GetAllKeys).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/keys", UploadKey).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/keys/{id}", GetKey).Methods(http.MethodGet)
 
-	adminRouter.HandleFunc("/keys/{id}/delete", DeleteKey).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/keys/{id}", DeleteKey).Methods(http.MethodDelete)
 
 	// Endpoints called by product instances having license
 	r.HandleFunc("/license/verify", VerifyLicense).Methods(http.MethodPost)

@@ -16,9 +16,8 @@ type Config struct {
 	Secret           string          `json:"secret"`
 	Apps             map[string]*App `json:"apps"`
 	DefaultKey       Key             `json:"default_key"`
-	MongoURL         string          `json:"mongo_url"`
-	DBName           string          `json:"db_name"`
 	ServerOptions    ServerOptions   `json:"server_options"`
+	DBOptions        DBOptions       `json:"db_options"`
 }
 
 func (c *Config) Load(filePath string) {
@@ -63,4 +62,19 @@ type App struct {
 	Name string `json:"name"`
 	Alg  string `json:"alg"`
 	Key  Key    `json:"key"`
+}
+
+type DBOptions struct {
+	Type  string `json:"type"`
+	File  File   `json:"file"`
+	Mongo Mongo  `json:"mongo"`
+}
+
+type File struct {
+	Dir string `json:"dir"`
+}
+
+type Mongo struct {
+	URL    string `json:"url"`
+	Name string `json:"name"`
 }

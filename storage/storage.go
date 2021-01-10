@@ -9,7 +9,6 @@ import (
 
 	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/lcs"
-
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,12 +35,16 @@ var LicenseHandler Handler
 
 func Connect() {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.MongoURL))
+	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.DBOptions.Mongo.URL))
 	fatalf("Problem while connecting to Mongo: %s", err)
 
-	LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBName).Collection("licenses")}
-	GlobalKeyHandler = mongoKeyHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
-	//GlobalRSAHandler = mongoRSAHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
+	if config.Global.DBOptions.Type == "file" {
+		LicenseHandler = FileHandler{}
+	} else {
+		LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBOptions.Mongo.Name).Collection("licenses")}
+		GlobalKeyHandler = mongoKeyHandler{MongoClient.Database(config.Global.DBOptions.Mongo.Name).Collection("keys")}
+		//GlobalRSAHandler = mongoRSAHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
+	}
 }
 
 func fatalf(format string, err error) {
@@ -164,6 +167,7 @@ func (h licenseMongoHandler) GetAll(licenses *[]*lcs.License) error {
 }
 
 func (h licenseMongoHandler) GetByToken(token string, l *lcs.License) error {
+	// TODO: Refactor hashing
 	h64 := fnv.New64a()
 	h64.Write([]byte(token))
 	hash := h64.Sum64()
