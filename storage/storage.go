@@ -34,16 +34,16 @@ type Handler interface {
 var LicenseHandler Handler
 
 func Connect() {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.DBOptions.Mongo.URL))
-	fatalf("Problem while connecting to Mongo: %s", err)
+	if config.Global.DBOptions.Type == "mongo" {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.DBOptions.Mongo.URL))
+		fatalf("Problem while connecting to Mongo: %s", err)
 
-	if config.Global.DBOptions.Type == "file" {
-		LicenseHandler = FileHandler{}
-	} else {
 		LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBOptions.Mongo.Name).Collection("licenses")}
 		GlobalKeyHandler = mongoKeyHandler{MongoClient.Database(config.Global.DBOptions.Mongo.Name).Collection("keys")}
 		//GlobalRSAHandler = mongoRSAHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
+	} else {
+		LicenseHandler = FileHandler{}
 	}
 }
 
