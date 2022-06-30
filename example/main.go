@@ -10,7 +10,7 @@ import (
 // make the license configurable
 var licenseKey = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiSXN0YW5idWwsIFR1cmtleSIsInVzZXJuYW1lIjoiRnVya2FuIn0.bpdpgglPhYPQd-kKCP8uCtH_NqLLg183DxMiHKVbBE1hrZbIUhBQ4R7_otPF0DmrGKbG-XVtQG0IeG-i4uLFYA"
 
-// pin this to your app
+// pin this to your product
 const secret = `-----BEGIN CERTIFICATE-----
 MIIEpDCCAowCCQC14kMH/BQPvDANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
 b2NhbGhvc3QwHhcNMjAwNDE4MjAyMTQ5WhcNMjEwNDE4MjAyMTQ5WjAUMRIwEAYD

@@ -6,27 +6,27 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/furkansenharputlu/f-license/config"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/furkansenharputlu/f-license/config"
 )
 
 const (
 	TestHMACSecret        = "test-hmac-secret"
-	TestAppHMACSecret     = "test-app-hmac-secret"
+	TestProductHMACSecret     = "test-product-hmac-secret"
 	TestDefaultHMACSecret = "test-default-hmac-secret"
 
-	TestAppName = "test-app"
+	TestProductName = "test-product"
 )
 
 func ResetTestConfig() {
-	app := config.Global.Apps["test-app"]
-	app.Alg = "RS512"
-	config.Global.Apps["test-app"] = app
+	product := config.Global.Products["test-product"]
+	product.Alg = "RS512"
+	config.Global.Products["test-product"] = product
 }
 
 func SampleLicense(lGen ...func(l *License)) (l *License) {
@@ -37,17 +37,19 @@ func SampleLicense(lGen ...func(l *License)) (l *License) {
 	}()
 
 	l = &License{
-		Active: true,
-		Headers: map[string]interface{}{
-			"typ": "Trial",
-			"alg": "HS256",
+		LicenseInfo: LicenseInfo{
+			Active: true,
+			Headers: map[string]interface{}{
+				"typ": "Trial",
+				"alg": "HS256",
+			},
+			Claims: jwt.MapClaims{
+				"name":    "Furkan",
+				"address": "Istanbul, Turkey",
+			},
 		},
-		Claims: jwt.MapClaims{
-			"name":    "Furkan",
-			"address": "Istanbul, Turkey",
-		},
-		Key: config.Key{
-			HMAC: &config.KeyDetail{
+		Key:  &config.Key{
+			/*HMAC: &config.KeyDetail{ // TODO gorm
 				Raw: TestHMACSecret,
 			},
 			RSA: &config.RSA{
@@ -57,7 +59,7 @@ func SampleLicense(lGen ...func(l *License)) (l *License) {
 				Public: &config.KeyDetail{
 					FilePath: publicKeyFile.Name(),
 				},
-			},
+			},*/
 		},
 	}
 
@@ -67,20 +69,20 @@ func SampleLicense(lGen ...func(l *License)) (l *License) {
 	return
 }
 
-func SampleApp() {
+func SampleProduct() {
 	publicKeyFile, privateKeyFile := SampleKeys()
 	defer func() {
 		_ = privateKeyFile.Close()
 		_ = publicKeyFile.Close()
 	}()
-	app := config.Global.Apps["test-app"]
-	app.Key.HMAC = &config.KeyDetail{
-		Raw: TestAppHMACSecret,
+	product := config.Global.Products["test-product"]
+	/*product.Key.HMAC = &config.KeyDetail{ // TODO gorm
+		Raw: TestProductHMACSecret,
 	}
-	app.Key.RSA.Private.FilePath = privateKeyFile.Name()
-	app.Key.RSA.Public.FilePath = publicKeyFile.Name()
-	app.Alg = "RS512"
-	config.Global.Apps["test-app"] = app
+	product.Key.RSA.Private.FilePath = privateKeyFile.Name()
+	product.Key.RSA.Public.FilePath = publicKeyFile.Name()
+	product.Alg = "RS512"*/
+	config.Global.Products["test-product"] = product
 }
 
 func SampleKeys() (publicKeyFile *os.File, privateKeyFile *os.File) {

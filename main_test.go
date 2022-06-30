@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 	storage.Connect()
 	_ = storage.LicenseHandler.DropDatabase()
 
-	lcs.SampleApp()
+	lcs.SampleProduct()
 
 	ret := m.Run()
 	tr.server.Close()
@@ -162,7 +162,7 @@ func TestClientVerifyRemotely(t *testing.T) {
 			_ = publicKeyFile.Close()
 		}()
 		config.Global.DefaultKeys = config.Keys{
-			RSA: config.RSA{
+			config.RSA: config.RSA{
 				Private: config.Key{
 					FilePath: privateKeyFile.Name(),
 				},
@@ -188,20 +188,20 @@ func TestClientVerifyRemotely(t *testing.T) {
 	})
 }
 
-func TestLicense_GetApp(t *testing.T) {
+func TestLicense_GetProduct(t *testing.T) {
 	l := lcs.SampleLicense()
 
-	app, _ := l.GetApp("test-app")
-	assert.Equal(t, config.Global.Apps["test-app"], app)
+	product, _ := l.GetProduct("test-product")
+	assert.Equal(t, config.Global.Products["test-product"], product)
 
-	_, err := l.GetApp("non-existing-app")
-	assert.EqualError(t, err, "app not found with given name")
+	_, err := l.GetProduct("non-existing-product")
+	assert.EqualError(t, err, "product not found with given name")
 
-	_, err = l.GetApp("")
-	assert.EqualError(t, err, "app not found with given name")
+	_, err = l.GetProduct("")
+	assert.EqualError(t, err, "product not found with given name")
 }
 
-func TestLicense_ApplyApp(t *testing.T) {
+func TestLicense_ApplyProduct(t *testing.T) {
 
 	l := lcs.SampleLicense(func(l *lcs.License) {
 		l.Headers["alg"] = "HS512"
@@ -212,10 +212,10 @@ func TestLicense_ApplyApp(t *testing.T) {
 	})
 
 	t.Run("with applying", func(t *testing.T) {
-		l.Headers["app"] = "test-app"
-		_ = l.ApplyApp()
+		l.Headers["product"] = "test-product"
+		_ = l.ApplyProduct()
 
 		assert.Equal(t, "RS512", l.GetAlg())
-		assert.Equal(t, config.Global.Apps["test-app"].Alg, l.GetAlg())
+		assert.Equal(t, config.Global.Products["test-product"].Alg, l.GetAlg())
 	})
 }

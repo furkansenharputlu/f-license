@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/furkansenharputlu/f-license/config"
 	"io/ioutil"
 	"os"
 
-	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/lcs"
 	"github.com/furkansenharputlu/f-license/storage"
 

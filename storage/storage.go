@@ -1,190 +1,77 @@
 package storage
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"hash/fnv"
-	"time"
-
-	"github.com/furkansenharputlu/f-license/config"
-	"github.com/furkansenharputlu/f-license/lcs"
+	"gorm.io/driver/sqlite"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-)
-
-const (
-	NoError                = 0
-	UnexpectedFailureError = 1
-	ItemDuplicationError   = 2
+	"gorm.io/gorm"
 )
 
 type Handler interface {
-	AddIfNotExisting(l *lcs.License) (error, int)
+	AddIfNotExisting(item interface{}) error
 	Activate(id string, inactivate bool) error
-	GetByID(id string, l *lcs.License) error
-	GetAll(licenses *[]*lcs.License) error
-	GetByToken(token string, l *lcs.License) error
-	DeleteByID(id string) error
+	Get(item interface{}, query interface{}, args ...interface{}) error
+	GetAll(items interface{}) error
+	Update(model interface{}, values interface{}) error
+	Delete(item interface{}, query interface{}, args ...interface{}) error
 	DropDatabase() error
+	DB() interface{}
 }
 
-var LicenseHandler Handler
+type sqlHandler struct {
+	db *gorm.DB
+}
 
-func Connect() {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	MongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Global.MongoURL))
-	fatalf("Problem while connecting to Mongo: %s", err)
+func (s sqlHandler) DB() interface{} {
+	return s.db
+}
 
-	LicenseHandler = licenseMongoHandler{MongoClient.Database(config.Global.DBName).Collection("licenses")}
-	GlobalKeyHandler = mongoKeyHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
-	//GlobalRSAHandler = mongoRSAHandler{MongoClient.Database(config.Global.DBName).Collection("keys")}
+func (s sqlHandler) AddIfNotExisting(item interface{}) error {
+	return s.db.Create(item).Error
+}
+
+func (sqlHandler) Activate(id string, inactivate bool) error {
+	panic("implement me")
+}
+
+func (s sqlHandler) Get(item interface{}, query interface{}, args ...interface{}) error {
+	return s.db.Where(query, args...).Find(item).Error
+}
+
+func (s sqlHandler) GetAll(items interface{}) error {
+	return s.db.Find(items).Error
+}
+
+func (s sqlHandler) Update(model interface{}, values interface{}) error {
+	return s.db.Model(model).Updates(values).Error
+}
+
+func (s sqlHandler) Delete(item interface{}, query interface{}, args ...interface{}) error {
+	return s.db.Where(query, args...).Delete(item).Error
+}
+
+func (sqlHandler) DropDatabase() error {
+	panic("implement me")
+}
+
+var SQLHandler Handler
+
+func Connect(dst ...interface{}) {
+	db, err := gorm.Open(sqlite.Open("f-license.db"), &gorm.Config{})
+	if err != nil {
+		fatalf("Problem while connecting to SQL: %s", err)
+	}
+
+	err = db.AutoMigrate(dst...)
+	if err != nil {
+		fatalf("Problem while creating SQL tables: %s", err)
+	}
+
+	SQLHandler = sqlHandler{db: db}
 }
 
 func fatalf(format string, err error) {
 	if err != nil {
 		logrus.Fatalf(format, err)
 	}
-}
-
-type licenseMongoHandler struct {
-	col *mongo.Collection
-}
-
-func (h licenseMongoHandler) AddIfNotExisting(l *lcs.License) (error, int) {
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-
-	filter := bson.M{"id": l.ID}
-	res := h.col.FindOne(ctx, filter)
-	err := res.Err()
-	if err != nil {
-		if err != mongo.ErrNoDocuments {
-			return err, UnexpectedFailureError
-		}
-	} else {
-		var existingLicense lcs.License
-		_ = res.Decode(&existingLicense)
-		return errors.New(fmt.Sprintf("there is already such license with ID: %s", existingLicense.ID)), ItemDuplicationError
-	}
-
-	l.ID = lcs.HexSHA256([]byte(l.Token))
-
-	update := bson.M{"$set": l}
-	_, err = h.col.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
-	if err != nil {
-		return errors.New(fmt.Sprintf("error while inserting license: %s", err)), 0
-	}
-
-	return nil, NoError
-}
-
-func (h licenseMongoHandler) Activate(id string, inactivate bool) error {
-	filter := bson.M{"id": bson.M{"$eq": id}}
-	update := bson.M{"$set": bson.M{"active": !inactivate}}
-	res, err := h.col.UpdateOne(context.Background(), filter, update)
-	if res.MatchedCount == 0 {
-		return errors.New("there is no matching license")
-	}
-
-	if res.ModifiedCount == 0 {
-		if inactivate {
-			return errors.New("already inactive")
-		} else {
-			return errors.New("already active")
-		}
-	}
-
-	if err != nil {
-		return errors.New("license cannot be updated")
-	}
-
-	if inactivate {
-		logrus.Infof(`License is successfully inactivated: %s`, id)
-	} else {
-		logrus.Infof(`License is successfully activated: %s`, id)
-	}
-
-	return nil
-}
-
-func (h licenseMongoHandler) DeleteByID(id string) error {
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"id": id}
-	res, err := h.col.DeleteOne(ctx, filter)
-	if res.DeletedCount == 0 {
-		return errors.New(fmt.Sprintf("there is no license with ID: %s", id))
-	}
-
-	if err != nil {
-		return errors.New("license cannot be deleted")
-	}
-
-	logrus.Info("License successfully deleted")
-
-	return nil
-}
-
-func (h licenseMongoHandler) GetByID(id string, l *lcs.License) error {
-	filter := bson.M{"id": id}
-	res := h.col.FindOne(context.Background(), filter)
-	err := res.Err()
-	if err != nil {
-		return err
-	}
-
-	_ = res.Decode(l)
-
-	return nil
-}
-
-func (h licenseMongoHandler) GetAll(licenses *[]*lcs.License) error {
-	cur, err := h.col.Find(context.Background(), bson.D{})
-	if err != nil {
-		return err
-	}
-
-	defer cur.Close(context.Background())
-
-	for cur.Next(context.Background()) {
-
-		var l lcs.License
-		err := cur.Decode(&l)
-		if err != nil {
-			return err
-		}
-
-		*licenses = append(*licenses, &l)
-
-	}
-
-	return cur.Err()
-}
-
-func (h licenseMongoHandler) GetByToken(token string, l *lcs.License) error {
-	h64 := fnv.New64a()
-	h64.Write([]byte(token))
-	hash := h64.Sum64()
-	hashStr := fmt.Sprintf("%v", hash)
-
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	filter := bson.M{"hash": hashStr}
-	res := h.col.FindOne(ctx, filter)
-	err := res.Err()
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return fmt.Errorf("license not found")
-		}
-		return fmt.Errorf("error while getting license: %s", err)
-	}
-
-	_ = res.Decode(l)
-
-	return nil
-}
-
-func (h licenseMongoHandler) DropDatabase() error {
-	return h.col.Database().Drop(context.Background())
 }

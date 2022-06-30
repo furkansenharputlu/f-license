@@ -5,13 +5,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
-	"io/ioutil"
+	"github.com/furkansenharputlu/f-license/config"
 	"net/http"
 	"strings"
 
 	"github.com/furkansenharputlu/f-license/lcs"
 
-	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -31,20 +30,18 @@ func (m *KeyManager) GetOrAddKey(k *config.Key, dryRun bool) (string, int, error
 	if k.ID != "" && !dryRun {
 		logrus.Debugf("Key will be used with the given ID %s", k.ID)
 
-		keyFound := false
-		for _, app := range config.Global.Apps {
-			if app.Key.ID == k.ID {
-				k = &app.Key
-				keyFound = true
-				break
-			}
-		}
-
-		if !keyFound {
-			err := storage.GlobalKeyHandler.GetByID(k.ID, k)
+		if config.Global.LoadProductsFromDB {
+			err := storage.SQLHandler.Get(k, "id = ?", k.ID)
 			if err != nil {
 				logrus.WithError(err).Errorf("Key with the given ID couldn't be retrieved: %s", k.ID)
 				return "", http.StatusNotFound, err
+			}
+		} else {
+			for _, product := range config.Global.Products {
+				if product.Key.ID == k.ID {
+					k = product.Key
+					break
+				}
 			}
 		}
 
@@ -54,45 +51,34 @@ func (m *KeyManager) GetOrAddKey(k *config.Key, dryRun bool) (string, int, error
 	logrus.Debug("Raw key will be used")
 	var err error
 	if k.Type == "hmac" {
-		hmac := k.HMAC
-		if hmac == nil {
+		if k.HMAC == "" {
 			return "", http.StatusBadRequest, errors.New("key type is hmac but no secret is set")
 		}
-		k.RSA = nil // if it is hmac, set rsa as nil to omit in marshallings
+
+		k.Private = ""
+		k.Public = ""
 		if getting {
-			rawHMACSecret, err := Decrypt([]byte(config.Global.Secret), hmac.Encrypted)
+			rawHMACSecret, err := Decrypt([]byte(config.Global.Secret), []byte(k.HMAC))
 			if err != nil {
 				logrus.WithError(err).Error("HMAC secret couldn't be decrypted")
 				return "", http.StatusInternalServerError, errors.New(InternalServerError)
 			}
 
-			hmac.Raw = string(rawHMACSecret)
+			k.HMAC = string(rawHMACSecret)
 		} else {
-			if hmac.Raw == "" {
-				if hmac.FilePath == "" {
-					return "", http.StatusBadRequest, errors.New("neither raw key or key file path provided")
-				}
-
-				rawKeyInBytes, err := ioutil.ReadFile(hmac.FilePath)
-				if err != nil {
-					return "", http.StatusNotFound, err
-				}
-
-				hmac.Raw = string(rawKeyInBytes)
-			}
-
 			// HMAC secret
-			rawHMACSecretInBytes := []byte(hmac.Raw)
-			hmac.Encrypted, err = Encrypt([]byte(config.Global.Secret), rawHMACSecretInBytes)
+			encrypted, err := Encrypt([]byte(config.Global.Secret), []byte(k.HMAC))
 			if err != nil {
 				logrus.Error("Raw hmac secret couldn't be encrypted")
 				return "", http.StatusInternalServerError, err
 			}
 
-			keyID += hmac.Raw
+			keyID += k.HMAC
+
+			k.HMAC = string(encrypted)
 		}
 
-	} else if k.Type == "rsa" {
+	} /*else if k.Type == "rsa" {
 		rsa := k.RSA
 		if rsa == nil {
 			return "", http.StatusBadRequest, errors.New("key type is rsa but no rsa is set")
@@ -174,13 +160,13 @@ func (m *KeyManager) GetOrAddKey(k *config.Key, dryRun bool) (string, int, error
 		}
 	} else {
 		return "", http.StatusBadRequest, errors.New("key type is undefined")
-	}
+	}*/
 
 	if !getting {
 		k.ID = lcs.HexSHA256([]byte(keyID))
 
 		if !dryRun {
-			err = storage.GlobalKeyHandler.AddIfNotExisting(k)
+			err = storage.SQLHandler.AddIfNotExisting(k)
 			if err != nil {
 				logrus.WithError(err).Debug("Couldn't store key inside license object")
 

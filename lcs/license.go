@@ -3,24 +3,30 @@ package lcs
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"github.com/furkansenharputlu/f-license/config"
+	"github.com/furkansenharputlu/f-license/storage"
+	"gorm.io/gorm"
 	"reflect"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/furkansenharputlu/f-license/config"
 )
 
 type License struct {
-	ID      string                 `bson:"id" json:"id"`
-	Active  bool                   `bson:"active" json:"active"`
-	Headers map[string]interface{} `bson:"headers" json:"headers"`
-	Claims  jwt.MapClaims          `bson:"claims" json:"claims"`
-	Token   string                 `bson:"token" json:"token"`
-	Key     config.Key             `bson:"key" json:"key"`
+	LicenseInfo
+	KeyID string      `json:"keyId"`
+	Key   *config.Key `json:"key,omitempty"`
 
-	SignKey   interface{} `bson:"-" json:"-"`
-	VerifyKey interface{} `bson:"-" json:"-"`
+	SignKey   interface{} `json:"-" gorm:"-"`
+	VerifyKey interface{} `json:"-" gorm:"-"`
+}
+
+type LicenseInfo struct {
+	ID      string                 `json:"id"`
+	Active  bool                   `json:"active"`
+	Headers map[string]interface{} `json:"headers" gorm:"-"`
+	Claims  jwt.MapClaims          `json:"claims" gorm:"-"`
+	Token   string                 `json:"token"`
 }
 
 /*func (l *License) SigningMethod() string{
@@ -64,18 +70,18 @@ func (l *License) AlgKeyTypeMatches() bool {
 	return json.Marshal(res)
 }*/
 
-func (l *License) GetAppName() (appName string) {
-	app, ok := l.Headers["app"]
+func (l *License) GetProductName() (appName string) {
+	product, ok := l.Headers["product"]
 	if ok {
-		appName = app.(string)
+		appName = product.(string)
 		return
 	}
 
 	return
 }
 
-func (l *License) SetAppName(appName string) {
-	l.Headers["app"] = appName
+func (l *License) SetProductName(appName string) {
+	l.Headers["product"] = appName
 }
 
 // GetAlg returns alg defined in the license header.
@@ -89,46 +95,71 @@ func (l *License) GetAlg() (alg string) {
 	return alg
 }
 
-func (l *License) GetApp(appName string) (*config.App, error) {
-	app, ok := config.Global.Apps[appName]
-	if !ok {
-		return nil, errors.New("app not found with given name")
+func (l *License) GetProduct(name string) (*config.Product, error) {
+	var product config.Product
+	db := storage.SQLHandler.DB().(*gorm.DB)
+	err := db.Preload("Key").Where("name = ?", name).Find(&product).Error
+	if err != nil {
+		return nil, err
 	}
 
-	return app, nil
+	return &product, nil
 }
 
-func (l *License) ApplyApp() error {
+func (l *License) DecodeToken() {
+	t, _ := jwt.Parse(l.Token, nil)
+
+	l.Headers = t.Header
+	l.Claims = t.Claims.(jwt.MapClaims)
+}
+
+func (l *License) ApplyProduct() error {
 	var alg string
-	var key config.Key
+	var key *config.Key
 	emptyKeys := config.Key{}
 
-	appName := l.GetAppName()
+	if l.Headers == nil {
+		l.Headers = make(map[string]interface{})
+	}
+
+	appName := l.GetProductName()
 	if appName == "" {
 		alg = l.GetAlg()
 		key = l.Key
 	} else {
-		app, err := l.GetApp(appName)
+		product, err := l.GetProduct(appName)
 		if err != nil {
 			return err
 		}
 
-		alg = app.Alg
-		key = app.Key
+		alg = product.Alg
+		key = product.Key
+
+		getPlan := func(name string) *config.Plan {
+			for _, plan := range product.Plans {
+				if plan.Name == name {
+					return plan
+				}
+			}
+
+			return nil
+		}
+
+		plan := getPlan(l.Headers["plan"].(string))
+
+		for k, v := range plan.Policy.Headers {
+			l.Headers[k] = v
+		}
 	}
 
 	if alg == "" {
 		alg = "HS256"
 	}
 
-	if l.Headers == nil {
-		l.Headers = make(map[string]interface{})
-	}
-
 	l.Headers["alg"] = alg
 
 	if reflect.DeepEqual(key, emptyKeys) {
-		key = config.Global.DefaultKey
+		key = &config.Global.DefaultKey
 	}
 
 	l.Key = key
@@ -159,7 +190,7 @@ func (l *License) Generate() error {
 
 func HexSHA256(key []byte) string {
 	certSHA := sha256.Sum256(key)
-	return hex.EncodeToString(certSHA[:])
+	return hex.EncodeToString(certSHA[:10])
 }
 
 func (l *License) EncryptKeys() error {

@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/furkansenharputlu/f-license/config"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/lcs"
 	"github.com/furkansenharputlu/f-license/storage"
 

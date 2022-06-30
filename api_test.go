@@ -99,7 +99,7 @@ func TestDeleteLicense(t *testing.T) {
 	tr.Run(t, &TestCase{Method: http.MethodPost, Path: path, Data: l,
 		BodyMatch: "there is already such license with ID: " + expectedID})
 
-	deletePath := fmt.Sprintf("/f/licenses/%s/delete", expectedID)
+	deletePath := fmt.Sprintf("/f/licenses/%s", expectedID)
 
 	tr.Run(t, &TestCase{Method: http.MethodDelete, Path: deletePath, BodyMatch: "License successfully deleted"})
 

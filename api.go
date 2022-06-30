@@ -4,15 +4,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/furkansenharputlu/f-license/config"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/pkg/errors"
-
 	"io/ioutil"
 	"net/http"
 	"strings"
 
-	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/lcs"
 	"github.com/furkansenharputlu/f-license/storage"
 
@@ -34,7 +33,7 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseMultipartForm(0)
 
 	newKey := &config.Key{
-		Name: "myRSAPair", //r.FormValue("name"), TODO: Enable this
+		Name: r.FormValue("name"),
 	}
 
 	typ := r.FormValue("type")
@@ -63,14 +62,8 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 		}
 
 		newKey.Type = "rsa"
-		newKey.RSA = &config.RSA{
-			Private: &config.KeyDetail{
-				Raw: rsaPrivate,
-			},
-			Public: &config.KeyDetail{
-				Raw: rsaPublic,
-			},
-		}
+		newKey.Private = rsaPrivate
+		newKey.Public = rsaPublic
 	} else if typ == "hmac" {
 		var hmac string
 		if hmac = r.FormValue("hmacRaw"); hmac == "" {
@@ -85,9 +78,7 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 		}
 
 		newKey.Type = "hmac"
-		newKey.HMAC = &config.KeyDetail{
-			Raw: hmac,
-		}
+		newKey.HMAC = hmac
 	} else {
 		ReturnError(w, http.StatusBadRequest, "unknown type")
 		return
@@ -103,12 +94,11 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 	ReturnResponse(w, http.StatusOK, map[string]interface{}{
 		"id": id,
 	})
-
 }
 
 func GetAllKeys(w http.ResponseWriter, r *http.Request) {
-	keys := make([]*config.Key, 0)
-	err := storage.GlobalKeyHandler.GetAll(&keys)
+	keys := make([]*config.KeyInfo, 0)
+	err := storage.SQLHandler.GetAll(&keys)
 	if err != nil {
 		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -134,7 +124,7 @@ func GetKey(w http.ResponseWriter, r *http.Request) {
 func DeleteKey(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	err := storage.GlobalKeyHandler.DeleteByID(id)
+	err := storage.SQLHandler.Delete(&config.Key{}, "id = ?", id)
 	if err != nil {
 		logrus.WithError(err).Error("Error while deleting key")
 		ReturnError(w, http.StatusInternalServerError, err.Error())
@@ -149,34 +139,33 @@ func DeleteKey(w http.ResponseWriter, r *http.Request) {
 func LoadKey(l *lcs.License) error {
 	km := KeyManager{}
 
-	_, _, err := km.GetOrAddKey(&l.Key, false) // TODO: Handle status code
+	_, _, err := km.GetOrAddKey(l.Key, false) // TODO: Handle status code
 	if err != nil {
 		return err
 	}
 
-	if strings.HasPrefix(l.GetAlg(), "HS") {
-		if l.Key.RSA != nil {
-			return errors.New("alg and key type mismatch")
-		}
-
-		l.SignKey = []byte(l.Key.HMAC.Raw)
-		l.VerifyKey = []byte(l.Key.HMAC.Raw)
-		l.Key.HMAC = nil // To prevent saving key in license
+	if l.Key.Type == "hmac" {
+		l.SignKey = []byte(l.Key.HMAC)
+		l.VerifyKey = []byte(l.Key.HMAC)
+		l.Key.Private = ""
+		l.Key.Public = ""
 	} else {
-		if l.Key.HMAC != nil {
+		/*if l.Key.HMAC != nil { // TODO gorm
 			return errors.New("alg and key type mismatch")
-		}
-		l.VerifyKey, err = jwt.ParseRSAPublicKeyFromPEM([]byte(l.Key.RSA.Public.Raw))
+		}*/
+
+		l.VerifyKey, err = jwt.ParseRSAPublicKeyFromPEM([]byte(l.Key.Public))
 		if err != nil {
 			return err
 		}
 
-		l.SignKey, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(l.Key.RSA.Private.Raw))
+		l.SignKey, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(l.Key.Private))
 		if err != nil {
 			return err
 		}
 
-		l.Key.RSA = nil // To prevent saving key in license
+		l.Key.Public = "" // To prevent saving key in license
+		l.Key.Private = ""
 	}
 
 	return nil
@@ -193,7 +182,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = l.ApplyApp() //TODO: Handle error
+	_ = l.ApplyProduct() //TODO: Handle error
 
 	err = LoadKey(&l)
 	if err != nil {
@@ -209,15 +198,11 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err, errCode := storage.LicenseHandler.AddIfNotExisting(&l)
+	err = storage.SQLHandler.AddIfNotExisting(&l)
 	if err != nil {
 		logrus.WithError(err).Error("License couldn't be stored")
 
 		responseCode := http.StatusInternalServerError
-
-		if errCode == storage.ItemDuplicationError {
-			responseCode = http.StatusConflict
-		}
 
 		ReturnError(w, responseCode, err.Error())
 		return
@@ -229,49 +214,135 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func GetApp(w http.ResponseWriter, r *http.Request) {
-	//appName := mux.Vars(r)["name"]
+func GetProduct(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-	var app = config.App{
-		Name: "test-app",
-		Alg:  "HS512",
-		Key: config.Key{
-			HMAC: &config.KeyDetail{
-				Raw: "test-secret",
-			},
-		},
+	var product config.Product
+	err := storage.SQLHandler.Get(&product, "id = ?", id)
+	if err != nil {
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	ReturnResponse(w, 200, app)
+	ReturnResponse(w, 200, product)
 }
 
-func GetAllApps(w http.ResponseWriter, r *http.Request) {
+func AddProduct(w http.ResponseWriter, r *http.Request) {
+	bytes, _ := ioutil.ReadAll(r.Body)
 
-	ReturnResponse(w, http.StatusOK, config.Global.Apps)
+	var p config.Product
+	_ = json.Unmarshal(bytes, &p)
+
+	p.ID = primitive.NewObjectID().Hex()
+
+	err := storage.SQLHandler.AddIfNotExisting(&p)
+	if err != nil {
+		logrus.WithError(err).Error("Customer couldn't be stored")
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ReturnResponse(w, http.StatusOK, map[string]interface{}{
+		"message": "Product created successfully",
+		"id":      p.ID,
+	})
+}
+
+func UpdateProduct(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	bytes, _ := ioutil.ReadAll(r.Body)
+
+	var p config.Product
+	_ = json.Unmarshal(bytes, &p)
+
+	p.ID = id
+
+	err := storage.SQLHandler.Update(&p, &p)
+	if err != nil {
+		logrus.WithError(err).Error("Error while updating product")
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ReturnResponse(w, 200, map[string]interface{}{
+		"message": "Product successfully updated",
+	})
+}
+
+func DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	err := storage.SQLHandler.Delete(&config.Product{}, "id = ?", id)
+	if err != nil {
+		logrus.WithError(err).Error("Error while deleting product")
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ReturnResponse(w, 200, map[string]interface{}{
+		"message": "Product successfully deleted",
+	})
+}
+
+func GetAllProducts(w http.ResponseWriter, r *http.Request) {
+	var products []config.Product
+	if !config.Global.LoadProductsFromDB {
+		for name, product := range config.Global.Products {
+			product.Name = name
+			products = append(products, product)
+		}
+
+		ReturnResponse(w, 200, products)
+		return
+	}
+
+	err := storage.SQLHandler.GetAll(&products)
+	if err != nil {
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ReturnResponse(w, http.StatusOK, products)
 }
 
 func GetLicense(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	var l lcs.License
-	err := storage.LicenseHandler.GetByID(id, &l)
+	err := storage.SQLHandler.Get(&l, "id = ?", id)
 	if err != nil {
 		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	ReturnResponse(w, 200, &l)
+	l.DecodeToken()
+
+	ReturnResponse(w, http.StatusOK, &l)
 }
 
 func GetAllLicenses(w http.ResponseWriter, r *http.Request) {
 	licenses := make([]*lcs.License, 0)
-	err := storage.LicenseHandler.GetAll(&licenses)
+	err := storage.SQLHandler.GetAll(&licenses)
 	if err != nil {
 		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	ReturnResponse(w, 200, licenses)
+	ReturnResponse(w, http.StatusOK, licenses)
+}
+
+func GetLicenseInfos(w http.ResponseWriter, r *http.Request) {
+	customerID := r.FormValue("customerId")
+
+	licenses := make([]*lcs.LicenseInfo, 0)
+	err := storage.SQLHandler.Get(&licenses, "id = ? AND customerId = ?", customerID)
+	if err != nil {
+		ReturnError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ReturnResponse(w, http.StatusOK, licenses)
 }
 
 func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +350,7 @@ func ChangeLicenseActiveness(w http.ResponseWriter, r *http.Request) {
 
 	inactivate := strings.Contains(r.URL.Path, "/inactivate")
 
-	err := storage.LicenseHandler.Activate(id, inactivate)
+	err := storage.SQLHandler.Activate(id, inactivate)
 	if err != nil {
 		logrus.WithError(err).Error("Error while activeness change")
 		ReturnError(w, http.StatusInternalServerError, err.Error())
@@ -303,14 +374,14 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 
 	var l lcs.License
-	err := storage.LicenseHandler.GetByToken(token, &l)
+	err := storage.SQLHandler.Get(token, &l) // TODO
 	if err != nil {
 		logrus.WithError(err).Error("Error while getting license")
 		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	err = l.ApplyApp()
+	err = l.ApplyProduct()
 	if err != nil {
 		ReturnError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -336,7 +407,7 @@ func VerifyLicense(w http.ResponseWriter, r *http.Request) {
 func DeleteLicense(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	err := storage.LicenseHandler.DeleteByID(id)
+	err := storage.SQLHandler.Delete(&lcs.License{}, "id = ?", id)
 	if err != nil {
 		logrus.WithError(err).Error("Error while deleting license")
 		ReturnError(w, http.StatusInternalServerError, err.Error())
