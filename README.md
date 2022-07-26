@@ -3,6 +3,9 @@
 
 **f-license** is an open-source license creation and verification tool. You can quickly add license key verification to your application. Don't implement yourself, just use the open-source product!
 
+# Premium
+Do you prefer to use a premium product with a user dashboard? If so, please reach out us with your use cases via this address: furkan_senharputlu@hotmail.com
+
 # Features
 
 - Generating license keys with one of HMAC and RSA algorithms
