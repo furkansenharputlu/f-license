@@ -11,13 +11,11 @@ import (
 	"math/big"
 	"os"
 	"time"
-
-	"github.com/dgrijalva/jwt-go"
 )
 
 const (
 	TestHMACSecret        = "test-hmac-secret"
-	TestProductHMACSecret     = "test-product-hmac-secret"
+	TestProductHMACSecret = "test-product-hmac-secret"
 	TestDefaultHMACSecret = "test-default-hmac-secret"
 
 	TestProductName = "test-product"
@@ -39,16 +37,16 @@ func SampleLicense(lGen ...func(l *License)) (l *License) {
 	l = &License{
 		LicenseInfo: LicenseInfo{
 			Active: true,
-			Headers: map[string]interface{}{
+			/*Headers: map[string]interface{}{
 				"typ": "Trial",
 				"alg": "HS256",
-			},
-			Claims: jwt.MapClaims{
+			},*/
+			/*Claims: jwt.MapClaims{
 				"name":    "Furkan",
 				"address": "Istanbul, Turkey",
-			},
+			},*/
 		},
-		Key:  &config.Key{
+		Key: &config.Key{
 			/*HMAC: &config.KeyDetail{ // TODO gorm
 				Raw: TestHMACSecret,
 			},

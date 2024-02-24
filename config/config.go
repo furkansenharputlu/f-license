@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/furkansenharputlu/f-license/storage"
 	"io/ioutil"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -16,12 +16,13 @@ import (
 var Global = &Config{}
 
 type Product struct {
-	ID    string `json:"id"`
-	Name  string `json:"name" gorm:"uniqueIndex"`
-	Alg   string `json:"alg"`
-	KeyID string `json:"keyId"`
-	Key   *Key   `json:"-"`
-	Plans Plans  `json:"plans"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name" gorm:"uniqueIndex"`
+	Alg       string    `json:"alg"`
+	KeyID     string    `json:"key"`
+	Key       *Key      `json:"-"`
+	Plans     Plans     `json:"plans"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type GORMMap map[string]interface{}
@@ -75,9 +76,14 @@ func (Plans) GormDataType() string {
 }
 
 type Policy struct {
-	Expiration int                    `json:"expiration"`
-	Headers    map[string]interface{} `json:"headers"`
-	Claims     jwt.MapClaims          `json:"claims"`
+	Expiration int  `json:"expiration"`
+	Headers    []KV `json:"headers"`
+	Claims     []KV `json:"claims"`
+}
+
+type KV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type Plan struct {
@@ -124,14 +130,16 @@ func (c *Config) Load(filePath string) {
 }
 
 type Key struct {
-	ID          string `json:"id"`
-	Name        string `json:"name" gorm:"uniqueIndex"` // email should be unique`
-	Type        string `json:"type"`
-	HMAC        string `json:"hmac,omitempty"`
-	Private     string `json:"private,omitempty"`
-	PrivatePath string `json:"private_path" gorm:"-"`
-	Public      string `json:"public,omitempty"`
-	PublicPath  string `json:"public_path" gorm:"-"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name" gorm:"uniqueIndex"` // name should be unique
+	Type        string    `json:"type"`
+	HMAC        string    `json:"hmac,omitempty"`
+	HMACPath    string    `json:"hmac_path,omitempty" gorm:"-"`
+	Private     string    `json:"private,omitempty"`
+	PrivatePath string    `json:"private_path,omitempty" gorm:"-"`
+	Public      string    `json:"public,omitempty"`
+	PublicPath  string    `json:"public_path,omitempty" gorm:"-"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type KeyInfo struct {

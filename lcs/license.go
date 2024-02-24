@@ -3,30 +3,35 @@ package lcs
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/furkansenharputlu/f-license/config"
 	"github.com/furkansenharputlu/f-license/storage"
+	"github.com/iancoleman/orderedmap"
 	"gorm.io/gorm"
 	"reflect"
+	"strings"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
 type License struct {
 	LicenseInfo
-	KeyID string      `json:"keyId"`
-	Key   *config.Key `json:"key,omitempty"`
+	KeyID string      `json:"key"`
+	Key   *config.Key `json:"-"`
 
 	SignKey   interface{} `json:"-" gorm:"-"`
 	VerifyKey interface{} `json:"-" gorm:"-"`
 }
 
 type LicenseInfo struct {
-	ID      string                 `json:"id"`
-	Active  bool                   `json:"active"`
-	Headers map[string]interface{} `json:"headers" gorm:"-"`
-	Claims  jwt.MapClaims          `json:"claims" gorm:"-"`
-	Token   string                 `json:"token"`
+	ID        string                 `json:"id"`
+	Active    bool                   `json:"active"`
+	Headers   *orderedmap.OrderedMap `json:"headers" gorm:"-"`
+	Claims    *orderedmap.OrderedMap `json:"claims" gorm:"-"`
+	Token     string                 `json:"token"`
+	CreatedAt time.Time              `json:"created_at"`
 }
 
 /*func (l *License) SigningMethod() string{
@@ -34,6 +39,7 @@ type LicenseInfo struct {
 }
 
 func (l *License) AlgKeyTypeMatches() bool {
+
 	if stringsl.GetAlg()
 
 	return
@@ -71,7 +77,7 @@ func (l *License) AlgKeyTypeMatches() bool {
 }*/
 
 func (l *License) GetProductName() (appName string) {
-	product, ok := l.Headers["product"]
+	product, ok := l.Headers.Get("product")
 	if ok {
 		appName = product.(string)
 		return
@@ -81,12 +87,12 @@ func (l *License) GetProductName() (appName string) {
 }
 
 func (l *License) SetProductName(appName string) {
-	l.Headers["product"] = appName
+	l.Headers.Set("product", appName)
 }
 
 // GetAlg returns alg defined in the license header.
 func (l *License) GetAlg() (alg string) {
-	algInt, ok := l.Headers["alg"]
+	algInt, ok := l.Headers.Get("alg")
 	if ok {
 		alg = algInt.(string)
 		return
@@ -107,10 +113,10 @@ func (l *License) GetProduct(name string) (*config.Product, error) {
 }
 
 func (l *License) DecodeToken() {
-	t, _ := jwt.Parse(l.Token, nil)
+	/*t, _ := jwt.Parse(l.Token, nil)
 
-	l.Headers = t.Header
-	l.Claims = t.Claims.(jwt.MapClaims)
+	//l.Headers = t.Header
+	l.Claims = t.Claims.(jwt.MapClaims)*/
 }
 
 func (l *License) ApplyProduct() error {
@@ -119,7 +125,7 @@ func (l *License) ApplyProduct() error {
 	emptyKeys := config.Key{}
 
 	if l.Headers == nil {
-		l.Headers = make(map[string]interface{})
+		l.Headers = orderedmap.New()
 	}
 
 	appName := l.GetProductName()
@@ -145,10 +151,17 @@ func (l *License) ApplyProduct() error {
 			return nil
 		}
 
-		plan := getPlan(l.Headers["plan"].(string))
+		if p, ok := l.Headers.Get("plan"); ok {
+			plan := getPlan(p.(string))
+			for _, h := range plan.Policy.Headers {
+				l.Headers.Set(h.Key, h.Value)
+			}
 
-		for k, v := range plan.Policy.Headers {
-			l.Headers[k] = v
+			for _, h := range plan.Policy.Claims {
+				l.Claims.Set(h.Key, h.Value)
+			}
+
+			l.Claims.Set("exp", time.Now().AddDate(0, 0, plan.Policy.Expiration).Unix())
 		}
 	}
 
@@ -156,7 +169,7 @@ func (l *License) ApplyProduct() error {
 		alg = "HS256"
 	}
 
-	l.Headers["alg"] = alg
+	l.Headers.Set("alg", alg)
 
 	if reflect.DeepEqual(key, emptyKeys) {
 		key = &config.Global.DefaultKey
@@ -167,14 +180,72 @@ func (l *License) ApplyProduct() error {
 	return nil
 }
 
+type Token struct {
+	*jwt.Token
+	Headers *orderedmap.OrderedMap
+	Claims  *orderedmap.OrderedMap
+}
+
+// SigningString is the customized version jwt.Token.SigningString.
+func (t *Token) SigningString() (string, error) {
+	var err error
+	parts := make([]string, 2)
+	for i, _ := range parts {
+		var jsonValue []byte
+		if i == 0 {
+			if jsonValue, err = json.Marshal(t.Headers); err != nil {
+				return "", err
+			}
+		} else {
+			if jsonValue, err = json.Marshal(t.Claims); err != nil {
+				return "", err
+			}
+		}
+
+		parts[i] = jwt.EncodeSegment(jsonValue)
+	}
+	return strings.Join(parts, "."), nil
+}
+
+// SignedString is the customized version jwt.Token.SignedString.
+func (t *Token) SignedString(key interface{}) (string, error) {
+	var sig, sstr string
+	var err error
+	if sstr, err = t.SigningString(); err != nil {
+		return "", err
+	}
+	if sig, err = t.Method.Sign(sstr, key); err != nil {
+		return "", err
+	}
+	return strings.Join([]string{sstr, sig}, "."), nil
+}
+
+// NewWithClaims is the customized version jwt.Token.
+func NewWithClaims(method jwt.SigningMethod, claims *orderedmap.OrderedMap) *Token {
+	headers := orderedmap.New()
+	headers.Set("typ", "JWT")
+	headers.Set("alg", method.Alg())
+	return &Token{
+		Headers: headers,
+		Claims:  claims,
+		Token: &jwt.Token{
+			Method: method,
+		},
+	}
+}
+
 func (l *License) Generate() error {
 
-	if len(l.Headers) == 0 {
-		l.Headers = make(map[string]interface{})
+	if l.Headers == nil {
+		l.Headers = orderedmap.New()
 	}
 
-	token := jwt.NewWithClaims(jwt.GetSigningMethod(l.GetAlg()), l.Claims)
-	token.Header = l.Headers
+	if _, ok := l.Claims.Get("iat"); !ok {
+		l.Claims.Set("iat", time.Now().Unix())
+	}
+
+	token := NewWithClaims(jwt.GetSigningMethod(l.GetAlg()), l.Claims)
+	token.Headers = l.Headers
 
 	signedString, err := token.SignedString(l.SignKey)
 	if err != nil {
@@ -190,7 +261,7 @@ func (l *License) Generate() error {
 
 func HexSHA256(key []byte) string {
 	certSHA := sha256.Sum256(key)
-	return hex.EncodeToString(certSHA[:10])
+	return hex.EncodeToString(certSHA[:3])
 }
 
 func (l *License) EncryptKeys() error {

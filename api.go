@@ -4,10 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/furkansenharputlu/f-license/config"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-
-	"github.com/dgrijalva/jwt-go"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -36,8 +35,8 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 		Name: r.FormValue("name"),
 	}
 
-	typ := r.FormValue("type")
-	if typ == "rsa" {
+	switch r.FormValue("type") {
+	case "rsa":
 		var rsaPrivate, rsaPublic string
 		if rsaPrivate = r.FormValue("rsaPrivateRaw"); rsaPrivate == "" {
 			rsaPrivateFile, _, err := r.FormFile("rsaPrivateFile")
@@ -64,9 +63,9 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 		newKey.Type = "rsa"
 		newKey.Private = rsaPrivate
 		newKey.Public = rsaPublic
-	} else if typ == "hmac" {
-		var hmac string
-		if hmac = r.FormValue("hmacRaw"); hmac == "" {
+	case "hmac":
+		var secret string
+		if secret = r.FormValue("hmacRaw"); secret == "" {
 			hmacFile, _, err := r.FormFile("hmacFile")
 			if err != nil {
 				ReturnError(w, http.StatusBadRequest, err.Error())
@@ -74,12 +73,12 @@ func UploadKey(w http.ResponseWriter, r *http.Request) {
 			}
 
 			hmacBytes, _ := ioutil.ReadAll(hmacFile)
-			hmac = string(hmacBytes)
+			secret = string(hmacBytes)
 		}
 
 		newKey.Type = "hmac"
-		newKey.HMAC = hmac
-	} else {
+		newKey.HMAC = secret
+	default:
 		ReturnError(w, http.StatusBadRequest, "unknown type")
 		return
 	}
@@ -139,17 +138,22 @@ func DeleteKey(w http.ResponseWriter, r *http.Request) {
 func LoadKey(l *lcs.License) error {
 	km := KeyManager{}
 
+	l.Key = &config.Key{
+		ID: l.KeyID,
+	}
+
 	_, _, err := km.GetOrAddKey(l.Key, false) // TODO: Handle status code
 	if err != nil {
 		return err
 	}
 
-	if l.Key.Type == "hmac" {
+	switch l.Key.Type {
+	case "hmac":
 		l.SignKey = []byte(l.Key.HMAC)
 		l.VerifyKey = []byte(l.Key.HMAC)
 		l.Key.Private = ""
 		l.Key.Public = ""
-	} else {
+	case "rsa":
 		/*if l.Key.HMAC != nil { // TODO gorm
 			return errors.New("alg and key type mismatch")
 		}*/
@@ -166,6 +170,8 @@ func LoadKey(l *lcs.License) error {
 
 		l.Key.Public = "" // To prevent saving key in license
 		l.Key.Private = ""
+	default:
+		return fmt.Errorf("unknown key type: %s", l.Key.Type)
 	}
 
 	return nil
@@ -182,7 +188,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = l.ApplyProduct() //TODO: Handle error
+	applyProduct := mux.Vars(r)["apply_product"]
+	if applyProduct == "true" {
+		_ = l.ApplyProduct() //TODO: Handle error
+	}
 
 	err = LoadKey(&l)
 	if err != nil {
@@ -316,7 +325,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.DecodeToken()
+	//l.DecodeToken()
 
 	ReturnResponse(w, http.StatusOK, &l)
 }

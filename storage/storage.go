@@ -39,7 +39,7 @@ func (s sqlHandler) Get(item interface{}, query interface{}, args ...interface{}
 }
 
 func (s sqlHandler) GetAll(items interface{}) error {
-	return s.db.Find(items).Error
+	return s.db.Order("created_at DESC").Find(items).Error
 }
 
 func (s sqlHandler) Update(model interface{}, values interface{}) error {
