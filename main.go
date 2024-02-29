@@ -18,7 +18,7 @@ const Version = "0.1"
 
 func intro() {
 	logrus.Info("f-license ", Version)
-	logrus.Info("Copyright Furkan Şenharputlu 2020")
+	logrus.Info("Copyright Furkan Şenharputlu 2024")
 	logrus.Info("https://f-license.com")
 }
 
